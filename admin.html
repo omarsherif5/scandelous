@@ -613,7 +613,7 @@ function adminWhatsApp(orderNum, type){
 //  PRODUCTS
 // ═══════════════════════════════════════════════════════════
 function getCustomProducts(){try{return JSON.parse(localStorage.getItem('sc_custom_products')||'[]')}catch(e){return[]}}
-function saveCustomProducts(l){localStorage.setItem('sc_custom_products',JSON.stringify(l))}
+function saveCustomProducts(l){try{localStorage.setItem('sc_custom_products',JSON.stringify(l))}catch(e){alert("Error saving: Browser memory is full. Try uploading a smaller image.");console.error(e)}}
 function getDeletedProducts(){try{return JSON.parse(localStorage.getItem('sc_deleted_products')||'[]')}catch(e){return[]}}
 function saveDeletedProducts(l){localStorage.setItem('sc_deleted_products',JSON.stringify(l))}
 function isCustomProduct(id){return getCustomProducts().some(function(p){return p.id===id})}
