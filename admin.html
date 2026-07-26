@@ -7,6 +7,8 @@
   <title>s.candle.ous — Admin Panel</title>
   <meta name="description" content="Admin dashboard for managing s.candle.ous products, orders, and store settings."/>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <script src="products.js"></script>
   <style>
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -483,8 +485,12 @@ function switchTab(name){
 // ═══════════════════════════════════════════════════════════
 //  ORDERS
 // ═══════════════════════════════════════════════════════════
-function getOrders(){try{return JSON.parse(localStorage.getItem('sc_orders')||'[]')}catch(e){return[]}}
-function saveOrders(o){localStorage.setItem('sc_orders',JSON.stringify(o))}
+window.FB_ORDERS = [];
+function getOrders() { return window.FB_ORDERS; }
+function saveOrders(o) {
+  window.FB_ORDERS = o;
+  if(window.DB_REF) window.DB_REF.child('sc_orders').set(JSON.stringify(o));
+}
 
 function renderStats(orders){
   var total=orders.reduce(function(a,o){return a+o.total},0);
@@ -612,10 +618,18 @@ function adminWhatsApp(orderNum, type){
 // ═══════════════════════════════════════════════════════════
 //  PRODUCTS
 // ═══════════════════════════════════════════════════════════
-function getCustomProducts(){try{return JSON.parse(localStorage.getItem('sc_custom_products')||'[]')}catch(e){return[]}}
-function saveCustomProducts(l){try{localStorage.setItem('sc_custom_products',JSON.stringify(l))}catch(e){alert("Error saving: Browser memory is full. Try uploading a smaller image.");console.error(e)}}
-function getDeletedProducts(){try{return JSON.parse(localStorage.getItem('sc_deleted_products')||'[]')}catch(e){return[]}}
-function saveDeletedProducts(l){localStorage.setItem('sc_deleted_products',JSON.stringify(l))}
+window.FB_CUSTOM_PRODUCTS = [];
+window.FB_DELETED_PRODUCTS = [];
+function getCustomProducts() { return window.FB_CUSTOM_PRODUCTS; }
+function saveCustomProducts(l) {
+  window.FB_CUSTOM_PRODUCTS = l;
+  if(window.DB_REF) window.DB_REF.child('sc_custom_products').set(JSON.stringify(l));
+}
+function getDeletedProducts() { return window.FB_DELETED_PRODUCTS; }
+function saveDeletedProducts(l) {
+  window.FB_DELETED_PRODUCTS = l;
+  if(window.DB_REF) window.DB_REF.child('sc_deleted_products').set(JSON.stringify(l));
+}
 function isCustomProduct(id){return getCustomProducts().some(function(p){return p.id===id})}
 
 function getStockLabel(id){
@@ -1114,7 +1128,39 @@ function checkLogin() {
 // ═══════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════
-renderOrders();
+const firebaseConfig = {
+  apiKey: "AIzaSyAxAksxq3AvxwnHpit4Ziz60Xw4M1UEnx0",
+  authDomain: "scandelous-3d5ba.firebaseapp.com",
+  databaseURL: "https://scandelous-3d5ba-default-rtdb.firebaseio.com",
+  projectId: "scandelous-3d5ba",
+  storageBucket: "scandelous-3d5ba.firebasestorage.app",
+  messagingSenderId: "659951201302",
+  appId: "1:659951201302:web:516f6363edc5c2038a5937"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+window.DB_REF = db.ref('/');
+
+db.ref('/').once('value').then(function(snapshot) {
+  var data = snapshot.val() || {};
+  window.FB_CUSTOM_PRODUCTS = data.sc_custom_products ? JSON.parse(data.sc_custom_products) : [];
+  window.FB_DELETED_PRODUCTS = data.sc_deleted_products ? JSON.parse(data.sc_deleted_products) : [];
+  window.FB_ORDERS = data.sc_orders ? JSON.parse(data.sc_orders) : [];
+  window.FB_STOCK = data.sc_stock ? JSON.parse(data.sc_stock) : {};
+  window.FB_PROMO_CODES = data.sc_promo_codes ? JSON.parse(data.sc_promo_codes) : [];
+  
+  if (window.FB_CUSTOM_PRODUCTS.length > 0) {
+    PRODUCTS = PRODUCTS.concat(window.FB_CUSTOM_PRODUCTS);
+  }
+  if (window.FB_DELETED_PRODUCTS.length > 0) {
+    PRODUCTS = PRODUCTS.filter(function(p) { return !window.FB_DELETED_PRODUCTS.includes(p.id); });
+  }
+  
+  renderOrders();
+}).catch(function(err) {
+  console.error("Firebase error", err);
+  renderOrders();
+});
 </script>
 </body>
 </html>

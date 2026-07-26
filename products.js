@@ -50,30 +50,21 @@ let PRODUCTS = [
 ];
 
 // --- LOAD CUSTOM PRODUCTS & FILTER DELETED ONES ---
-try {
-  const customProds = JSON.parse(localStorage.getItem('sc_custom_products') || '[]');
-  const deletedProds = JSON.parse(localStorage.getItem('sc_deleted_products') || '[]');
-  
-  if (customProds.length > 0) {
-    PRODUCTS = PRODUCTS.concat(customProds);
-  }
-  
-  if (deletedProds.length > 0) {
-    PRODUCTS = PRODUCTS.filter(p => !deletedProds.includes(p.id));
-  }
-} catch(e) {
-  console.error("Error loading custom products:", e);
-}
+// Firebase will handle custom products asynchronously
+// See index.html and admin.html for the database loading logic
 
 // --- STOCK TRACKING ---
 // Stock overrides: { productId: quantity }
-// If a product is NOT in this map, it has unlimited stock.
-// Stock is decreased automatically when orders are placed.
+window.FB_STOCK = {};
+window.FB_PROMO_CODES = [];
+window.DB_REF = null;
+
 function getStockMap() {
-  try { return JSON.parse(localStorage.getItem('sc_stock') || '{}'); } catch(e) { return {}; }
+  return window.FB_STOCK;
 }
 function saveStockMap(map) {
-  localStorage.setItem('sc_stock', JSON.stringify(map));
+  window.FB_STOCK = map;
+  if(window.DB_REF) window.DB_REF.child('sc_stock').set(JSON.stringify(map));
 }
 function getProductStock(id) {
   var map = getStockMap();
@@ -98,10 +89,11 @@ function isInStock(id) {
 
 // --- PROMO CODES ---
 function getPromoCodes() {
-  try { return JSON.parse(localStorage.getItem('sc_promo_codes') || '[]'); } catch(e) { return []; }
+  return window.FB_PROMO_CODES;
 }
 function savePromoCodes(list) {
-  localStorage.setItem('sc_promo_codes', JSON.stringify(list));
+  window.FB_PROMO_CODES = list;
+  if(window.DB_REF) window.DB_REF.child('sc_promo_codes').set(JSON.stringify(list));
 }
 
 // ─────────────────────────────────────────────────────

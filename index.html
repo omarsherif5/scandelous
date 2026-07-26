@@ -6,6 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>SCANDLEOUS by Layla — Handcrafted Candles & Tray Sets</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400;1,500&family=Jost:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
   <script src="products.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>
@@ -1215,10 +1217,41 @@ function handleContact(e) {
   e.target.reset();
 }
 
-// ── INIT ──
-renderProducts();
-updateCartUI();
+// ✿✿ INIT ✿✿
+const firebaseConfig = {
+  apiKey: "AIzaSyAxAksxq3AvxwnHpit4Ziz60Xw4M1UEnx0",
+  authDomain: "scandelous-3d5ba.firebaseapp.com",
+  databaseURL: "https://scandelous-3d5ba-default-rtdb.firebaseio.com",
+  projectId: "scandelous-3d5ba",
+  storageBucket: "scandelous-3d5ba.firebasestorage.app",
+  messagingSenderId: "659951201302",
+  appId: "1:659951201302:web:516f6363edc5c2038a5937"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+db.ref('/').once('value').then(function(snapshot) {
+  var data = snapshot.val() || {};
+  var customProds = data.sc_custom_products ? JSON.parse(data.sc_custom_products) : [];
+  var deletedProds = data.sc_deleted_products ? JSON.parse(data.sc_deleted_products) : [];
+  window.FB_STOCK = data.sc_stock ? JSON.parse(data.sc_stock) : {};
+  window.FB_PROMO_CODES = data.sc_promo_codes ? JSON.parse(data.sc_promo_codes) : [];
+  window.DB_REF = db.ref('/');
+  
+  if (customProds.length > 0) {
+    PRODUCTS = PRODUCTS.concat(customProds);
+  }
+  if (deletedProds.length > 0) {
+    PRODUCTS = PRODUCTS.filter(function(p) { return !deletedProds.includes(p.id); });
+  }
+  
+  renderProducts();
+  updateCartUI();
+}).catch(function(err) {
+  console.error("Firebase error", err);
+  renderProducts();
+  updateCartUI();
+});
 </script>
 </body>
 </html>
-
