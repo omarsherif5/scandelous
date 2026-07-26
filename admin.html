@@ -703,7 +703,7 @@ function handleImageFile(e){
   if(!files.length)return;
   files.forEach(function(file){
     if(!file.type.startsWith('image/')){showToast('⚠️ Skipped non-image file');return}
-    if(file.size>2*1024*1024){showToast('⚠️ Skipped image over 2MB');return}
+    if(file.size>15*1024*1024){showToast('⚠️ Skipped image over 15MB');return}
     var reader=new FileReader();
     reader.onload=function(ev){
       resizeImage(ev.target.result,600,function(resized){
