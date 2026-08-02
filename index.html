@@ -310,6 +310,16 @@
       .form-row{grid-template-columns:1fr}
     }
     
+    @media(max-width:768px){
+      .products-grid{gap:16px}
+      .feat-grid{gap:16px}
+      .card-name{font-size:1.1rem}
+      .card-img{border-radius:12px}
+      #shop,.features,#about,#contact{padding:40px 16px}
+      .hero-title{font-size:3rem}
+      .hero-logo-display img{width:220px}
+    }
+    
     /* ── DISABLE CUSTOM CURSOR ON TOUCH DEVICES ── */
     @media (hover: none) and (pointer: coarse) {
       * { cursor: auto !important; }
@@ -333,7 +343,7 @@
     <li><a href="#contact">Contact</a></li>
   </ul>
   <button class="cart-btn" onclick="openCart()">
-    🛍 Cart <span class="cart-count hidden" id="cartCount">0</span>
+    🛍 <span class="cart-count hidden" id="cartCount">0</span>
   </button>
 </nav>
 
