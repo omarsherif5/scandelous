@@ -309,6 +309,12 @@
       .mfg.full{grid-column:auto}
       .form-row{grid-template-columns:1fr}
     }
+    
+    /* ── DISABLE CUSTOM CURSOR ON TOUCH DEVICES ── */
+    @media (hover: none) and (pointer: coarse) {
+      * { cursor: auto !important; }
+      #cur, #curR { display: none !important; }
+    }
   </style>
 </head>
 <body>
