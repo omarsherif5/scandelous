@@ -85,10 +85,11 @@
     .products-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:40px}
     .product-card{background:transparent;overflow:hidden;transition:transform .4s;border-radius:0}
     .product-card:hover{transform:translateY(-8px)}
-    .card-img{aspect-ratio:4/5;position:relative;overflow-x:auto;overflow-y:hidden;display:flex;align-items:center;border-radius:16px;background:var(--sand);scroll-snap-type:x mandatory;scrollbar-width:none}
-    .card-img::-webkit-scrollbar{display:none}
-    .card-img img{flex:0 0 100%;width:100%;height:100%;object-fit:cover;scroll-snap-align:start;transition:transform .8s ease}
-    .product-card:hover .card-img img{transform:scale(1.05)}
+    .card-img{aspect-ratio:4/5;position:relative;border-radius:16px;background:var(--sand);overflow:hidden;}
+    .card-img-scroll{display:flex;align-items:center;width:100%;height:100%;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;}
+    .card-img-scroll::-webkit-scrollbar{display:none}
+    .card-img-scroll img{flex:0 0 100%;width:100%;height:100%;object-fit:cover;scroll-snap-align:start;transition:transform .8s ease}
+    .product-card:hover .card-img-scroll img{transform:scale(1.05)}
     .card-placeholder{flex:0 0 100%;width:100%;height:100%;display:flex;align-items:center;justify-content:center;border-radius:16px;scroll-snap-align:start}
     .card-badge{position:absolute;top:14px;left:14px;padding:4px 14px;font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;font-weight:500;z-index:2;border-radius:50px}
     .badge-terra{background:var(--terra);color:#fff}
@@ -260,7 +261,6 @@
     .detail-modal.open{opacity:1;pointer-events:all}
     .detail-overlay{position:absolute;inset:0;background:rgba(45,36,32,.5);backdrop-filter:blur(6px)}
     .detail-box{position:relative;z-index:1;background:var(--warm);width:min(800px,94vw);max-height:90vh;overflow-y:auto;overflow-x:hidden;display:grid;grid-template-columns:1fr 1fr;border-radius:28px}
-    body.modal-open, html.modal-open{overflow:hidden !important;height:100%}
     .detail-img{background:var(--blush-lt);display:flex;align-items:center;min-height:380px;position:relative;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none}
     .detail-img::-webkit-scrollbar{display:none}
     .detail-img img{flex:0 0 100%;width:100%;height:100%;object-fit:cover;scroll-snap-align:start}
@@ -348,7 +348,7 @@
     <li><a href="#contact">Contact</a></li>
   </ul>
   <button class="cart-btn" onclick="openCart()">
-    🛍 <span class="cart-count hidden" id="cartCount">0</span>
+    <span style="font-size:1.15rem;margin-right:2px">🛍</span> <span class="cart-count hidden" id="cartCount">0</span>
   </button>
 </nav>
 
@@ -802,14 +802,12 @@ function removeItem(id, color) {
 function openCart() {
   document.getElementById('cartOverlay').classList.add('open');
   document.getElementById('cartDrawer').classList.add('open');
-  document.body.classList.add('modal-open');
-  document.documentElement.classList.add('modal-open');
+  document.body.style.overflow = 'hidden';
 }
 function closeCart() {
   document.getElementById('cartOverlay').classList.remove('open');
   document.getElementById('cartDrawer').classList.remove('open');
-  document.body.classList.remove('modal-open');
-  document.documentElement.classList.remove('modal-open');
+  document.body.style.overflow = '';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -823,14 +821,12 @@ function openCheckout() {
   document.getElementById('checkoutModal').classList.add('open');
   document.getElementById('checkoutForm').style.display = 'block';
   document.getElementById('successView').classList.remove('show');
-  document.body.classList.add('modal-open');
-  document.documentElement.classList.add('modal-open');
+  document.body.style.overflow = 'hidden';
 }
 function closeCheckout() {
   document.getElementById('checkoutOverlay').classList.remove('open');
   document.getElementById('checkoutModal').classList.remove('open');
-  document.body.classList.remove('modal-open');
-  document.documentElement.classList.remove('modal-open');
+  document.body.style.overflow = '';
 }
 
 function buildOrderSummary() {
@@ -1184,13 +1180,11 @@ function openDetail(id) {
   }
   
   document.getElementById('detailModal').classList.add('open');
-  document.body.classList.add('modal-open');
-  document.documentElement.classList.add('modal-open');
+  document.body.style.overflow = 'hidden';
 }
 function closeDetail() {
   document.getElementById('detailModal').classList.remove('open');
-  document.body.classList.remove('modal-open');
-  document.documentElement.classList.remove('modal-open');
+  document.body.style.overflow = '';
 }
 
 window.selectColor = function(btn, color) {
@@ -1235,7 +1229,7 @@ function renderProducts(filter) {
     var cName = p.category === 'resin' ? 'Resin' : (p.category === 'candles' ? 'Candles' : (p.category === 'gypsum' ? 'Gypsum' : (p.category === 'her-favorites' ? 'Her favorites' : p.category)));
     return '<div class="product-card reveal" style="transition-delay:' + (i * 55) + 'ms;' + (isOut ? 'opacity:0.6' : '') + '">' +
       '<div class="card-img">' +
-        imgsHtml +
+        '<div class="card-img-scroll">' + imgsHtml + '</div>' +
         getBadge(isOut ? 'Sold Out' : p.badge) +
         '<button class="card-quick" onclick="openDetail(' + p.id + ')">View Details</button>' +
       '</div>' +
