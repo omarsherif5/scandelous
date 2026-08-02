@@ -423,6 +423,7 @@
       </div>
       <div class="pm-field"><label>Stock Quantity</label><input type="number" id="pmStock" placeholder="Leave empty = unlimited" min="0"/></div>
       <div class="pm-field"><label>Placeholder Color</label><input type="color" id="pmColor" value="#D9A8A8" style="height:46px;cursor:pointer"/></div>
+      <div class="pm-field" style="grid-column:1/-1"><label>Available Colors (comma separated)</label><input type="text" id="pmAvailableColors" placeholder="e.g. Red, Blue, Pink"/></div>
     </div>
     <input type="hidden" id="pmEditId" value=""/>
     <button class="pm-save-btn" onclick="saveProduct()">✿ Save Product</button>
@@ -687,6 +688,7 @@ function editProduct(id){
   document.getElementById('pmWeight').value=p.weight||'';
   document.getElementById('pmBadge').value=p.badge||'';
   document.getElementById('pmColor').value=p.color||'#D9A8A8';
+  document.getElementById('pmAvailableColors').value=(p.colors||[]).join(', ');
   var stock=getProductStock(id);
   document.getElementById('pmStock').value=stock!==null?stock:'';
   currentImagesData=[];
@@ -708,6 +710,7 @@ function clearProductForm(){
   document.getElementById('pmPrice').value='';
   document.getElementById('pmBadge').value='';
   document.getElementById('pmColor').value='#D9A8A8';
+  document.getElementById('pmAvailableColors').value='';
   document.getElementById('pmStock').value='';
   currentImagesData=[];removeImage();
 }
@@ -781,6 +784,7 @@ function saveProduct(){
   var weight=document.getElementById('pmWeight').value.trim();
   var badge=document.getElementById('pmBadge').value;
   var color=document.getElementById('pmColor').value;
+  var availableColors=document.getElementById('pmAvailableColors').value;
   var imageUrl=document.getElementById('pmImageUrl').value.trim();
   var stockVal=document.getElementById('pmStock').value.trim();
   var editId=document.getElementById('pmEditId').value;
@@ -800,9 +804,11 @@ function saveProduct(){
 
   var customProducts=getCustomProducts();
 
+  var colorsArr = availableColors ? availableColors.split(',').map(function(s){return s.trim();}).filter(function(s){return s;}) : [];
+
   if(editId){
     editId=parseInt(editId);
-    var prodData={id:editId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,inStock:true,color:color};
+    var prodData={id:editId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,inStock:true,color:color,colors:colorsArr};
     if(isCustomProduct(editId)){
       customProducts=customProducts.map(function(p){return p.id===editId?prodData:p});
     } else {
@@ -820,8 +826,9 @@ function saveProduct(){
     var maxId=100;
     PRODUCTS.forEach(function(p){if(p.id>=maxId)maxId=p.id+1});
     customProducts.forEach(function(p){if(p.id>=maxId)maxId=p.id+1});
-    var np={id:maxId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,inStock:true,color:color};
-    customProducts.push(np);PRODUCTS.push(np);
+    maxId++;
+    var newProd={id:maxId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,inStock:true,color:color,colors:colorsArr};
+    customProducts.push(newProd);PRODUCTS.push(newProd);
     if(stockVal!=='')setProductStock(maxId,parseInt(stockVal));
     showToast('✿ "'+name+'" added!');
   }
