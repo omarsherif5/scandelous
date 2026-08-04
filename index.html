@@ -675,6 +675,13 @@ function showToast(msg) {
 var cart = [];
 var currentSelectedColor = null;
 try { cart = JSON.parse(localStorage.getItem('sc_cart') || '[]'); } catch(e) {}
+// Migrate old cart data: strip descriptions from names, remove scent field
+cart = cart.map(function(item) {
+  item.name = item.name.split('(')[0].trim();
+  delete item.scent;
+  return item;
+});
+try { localStorage.setItem('sc_cart', JSON.stringify(cart)); } catch(e) {}
 
 function saveCart() { try { localStorage.setItem('sc_cart', JSON.stringify(cart)); } catch(e) {} }
 
@@ -1310,6 +1317,7 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
+window.DB_REF = db.ref('/');
 
 db.ref('/').once('value').then(function(snapshot) {
   var data = snapshot.val() || {};
@@ -1317,7 +1325,6 @@ db.ref('/').once('value').then(function(snapshot) {
   var deletedProds = data.sc_deleted_products ? JSON.parse(data.sc_deleted_products) : [];
   window.FB_STOCK = data.sc_stock ? JSON.parse(data.sc_stock) : {};
   window.FB_PROMO_CODES = data.sc_promo_codes ? JSON.parse(data.sc_promo_codes) : [];
-  window.DB_REF = db.ref('/');
   
   if (customProds.length > 0) {
     PRODUCTS = PRODUCTS.concat(customProds);
