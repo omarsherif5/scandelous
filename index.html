@@ -969,7 +969,7 @@ function sendOrderEmail(order) {
   emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
   
   var itemsList = order.items.map(function(i) {
-    return '• ' + i.name + (i.color ? ' (' + i.color + ')' : '') + ' (' + i.scent + ') × ' + i.qty + '  →  ' + STORE_SETTINGS.currency + ' ' + (i.price * i.qty).toLocaleString();
+    return i.qty + 'x  ' + i.name + (i.color ? ' (' + i.color + ')' : '') + '   —   ' + STORE_SETTINGS.currency + ' ' + (i.price * i.qty).toLocaleString();
   }).join('\n');
 
   emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
