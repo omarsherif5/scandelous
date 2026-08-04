@@ -572,7 +572,7 @@ function renderOrders(){
 }
 
 function toggleDetail(id){document.getElementById(id).classList.toggle('open')}
-function clearOrders(){if(!confirm('Delete ALL orders? This cannot be undone.'))return;localStorage.removeItem('sc_orders');renderOrders();showToast('✿ All orders cleared')}
+function clearOrders(){if(!confirm('Delete ALL orders? This cannot be undone.'))return;localStorage.removeItem('sc_orders');window.FB_ORDERS=[];if(window.DB_REF)window.DB_REF.child('sc_orders').set('[]');renderOrders();showToast('✿ All orders cleared')}
 
 function adminWhatsApp(orderNum, type){
   var orders = getOrders();

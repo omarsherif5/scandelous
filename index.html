@@ -776,7 +776,8 @@ function addToCart(id, colorOverride) {
   if (ex) { ex.qty++; }
   else { 
     var firstImg = p.images && p.images.length > 0 ? p.images[0] : (p.image || '');
-    cart.push({ id: p.id, name: p.name, scent: p.scent, price: p.price, image: firstImg, color: colorToUse, qty: 1 }); 
+    var cleanName = p.name.split('(')[0].trim();
+    cart.push({ id: p.id, name: cleanName, price: p.price, image: firstImg, color: colorToUse, qty: 1 }); 
   }
   saveCart();
   updateCartUI();
@@ -920,10 +921,16 @@ function placeOrder() {
   // Save order to Firebase
   try {
     if (window.DB_REF) {
+      var orderData = JSON.parse(JSON.stringify(order));
       window.DB_REF.child('sc_orders').once('value').then(function(snap) {
-        var orders = snap.val() ? JSON.parse(snap.val()) : [];
-        orders.push(order);
-        window.DB_REF.child('sc_orders').set(JSON.stringify(orders));
+        var fbOrders = [];
+        try { fbOrders = snap.val() ? JSON.parse(snap.val()) : []; } catch(e) { fbOrders = []; }
+        fbOrders.push(orderData);
+        window.DB_REF.child('sc_orders').set(JSON.stringify(fbOrders)).then(function() {
+          console.log('✅ Order saved to Firebase');
+        }).catch(function(e) {
+          console.error('Firebase save error:', e);
+        });
       });
     }
     
@@ -979,7 +986,7 @@ function sendOrderEmail(order) {
   
   var itemsList = order.items.map(function(i) {
     var cleanName = i.name.split('(')[0].trim();
-    return i.qty + 'x  ' + cleanName + (i.color ? ' (' + i.color + ')' : '') + '   —   ' + STORE_SETTINGS.currency + ' ' + (i.price * i.qty).toLocaleString();
+    return cleanName + (i.color ? ' (' + i.color + ')' : '') + '  ×  ' + i.qty + '  —  ' + STORE_SETTINGS.currency + ' ' + (i.price * i.qty).toLocaleString();
   }).join('\n');
 
   emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
