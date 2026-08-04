@@ -917,10 +917,19 @@ function placeOrder() {
   };
 
   // Save order and update promo usage
+  // Save order to Firebase
   try {
-    var orders = JSON.parse(localStorage.getItem('sc_orders') || '[]');
-    orders.push(order);
-    localStorage.setItem('sc_orders', JSON.stringify(orders));
+    if (window.DB_REF) {
+      window.DB_REF.child('sc_orders').once('value').then(function(snap) {
+        var orders = snap.val() ? JSON.parse(snap.val()) : [];
+        orders.push(order);
+        window.DB_REF.child('sc_orders').set(JSON.stringify(orders));
+      });
+    }
+    
+    var localOrders = JSON.parse(localStorage.getItem('sc_orders') || '[]');
+    localOrders.push(order);
+    localStorage.setItem('sc_orders', JSON.stringify(localOrders));
     
     if (currentPromo) {
       var promos = getPromoCodes();
@@ -969,7 +978,8 @@ function sendOrderEmail(order) {
   emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
   
   var itemsList = order.items.map(function(i) {
-    return i.qty + 'x  ' + i.name + (i.color ? ' (' + i.color + ')' : '') + '   —   ' + STORE_SETTINGS.currency + ' ' + (i.price * i.qty).toLocaleString();
+    var cleanName = i.name.split('(')[0].trim();
+    return i.qty + 'x  ' + cleanName + (i.color ? ' (' + i.color + ')' : '') + '   —   ' + STORE_SETTINGS.currency + ' ' + (i.price * i.qty).toLocaleString();
   }).join('\n');
 
   emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
