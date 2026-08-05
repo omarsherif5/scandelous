@@ -515,11 +515,8 @@
       <li><a href="#about">About</a></li>
       <li><a href="#contact">Contact</a></li>
     </ul></div>
-    <div class="f-links"><h4>Products</h4><ul>
-      <li><a href="#shop">Cloud Trays</a></li>
-      <li><a href="#shop">Beauty Accessories</a></li>
-      <li><a href="#shop">Jewelry Holders</a></li>
-      <li><a href="#shop">Gifts</a></li>
+    <div class="f-links"><h4>Products</h4><ul id="footerProductsList">
+      <li><a href="#shop">All Goodies</a></li>
     </ul></div>
     <div class="f-newsletter">
       <h4>Stay in the warmth</h4>
@@ -1141,7 +1138,8 @@ function openDetail(id) {
     div.textContent = '🕯️';
     imgSide.appendChild(div);
   }
-  var catName = p.category === 'resin' ? 'Resin' : (p.category === 'candles' ? 'Candles' : (p.category === 'gypsum' ? 'Gypsum' : (p.category === 'her-favorites' ? 'Her favorites' : p.category)));
+  var catObj = window.FB_CATEGORIES ? window.FB_CATEGORIES.find(function(c) { return c.id === p.category; }) : null;
+  var catName = catObj ? catObj.name : p.category;
   document.getElementById('detailCat').textContent   = catName || 'Lifestyle Goodies';
   document.getElementById('detailName').textContent  = p.name;
   document.getElementById('detailScent').textContent = p.scent;
@@ -1239,7 +1237,8 @@ function renderProducts(filter) {
       dotsHtml += '</div>';
     }
     
-    var cName = p.category === 'resin' ? 'Resin' : (p.category === 'candles' ? 'Candles' : (p.category === 'gypsum' ? 'Gypsum' : (p.category === 'her-favorites' ? 'Her favorites' : p.category)));
+    var catObj = window.FB_CATEGORIES ? window.FB_CATEGORIES.find(function(c) { return c.id === p.category; }) : null;
+    var cName = catObj ? catObj.name : p.category;
     return '<div class="product-card reveal" style="transition-delay:' + (i * 55) + 'ms;' + (isOut ? 'opacity:0.6' : '') + '">' +
       '<div class="card-img">' +
         '<div class="card-img-scroll">' + imgsHtml + '</div>' +
@@ -1350,6 +1349,14 @@ window.DB_REF = db.ref('/');
 
 db.ref('/').once('value').then(function(snapshot) {
   var data = snapshot.val() || {};
+  window.FB_CATEGORIES = data.sc_categories ? JSON.parse(data.sc_categories) : [
+    {id: 'resin', name: 'Resin'},
+    {id: 'candles', name: 'Candles'},
+    {id: 'gypsum', name: 'Gypsum'},
+    {id: 'her-favorites', name: 'Her favorites'}
+  ];
+  renderDynamicCategories();
+  
   var customProds = data.sc_custom_products ? JSON.parse(data.sc_custom_products) : [];
   var deletedProds = data.sc_deleted_products ? JSON.parse(data.sc_deleted_products) : [];
   window.FB_STOCK = data.sc_stock ? JSON.parse(data.sc_stock) : {};
@@ -1366,9 +1373,49 @@ db.ref('/').once('value').then(function(snapshot) {
   updateCartUI();
 }).catch(function(err) {
   console.error("Firebase error", err);
+  window.FB_CATEGORIES = [
+    {id: 'resin', name: 'Resin'},
+    {id: 'candles', name: 'Candles'},
+    {id: 'gypsum', name: 'Gypsum'},
+    {id: 'her-favorites', name: 'Her favorites'}
+  ];
+  renderDynamicCategories();
   renderProducts();
   updateCartUI();
 });
+
+function renderDynamicCategories() {
+  var filtersContainer = document.querySelector('.filters');
+  if (filtersContainer) {
+    filtersContainer.innerHTML = '<button class="f-btn active" data-filter="all">All Goodies</button>' + 
+      window.FB_CATEGORIES.map(function(c) {
+        return '<button class="f-btn" data-filter="' + c.id + '">' + c.name + '</button>';
+      }).join('');
+    // Re-bind filter buttons
+    document.querySelectorAll('.f-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.f-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        renderProducts(btn.dataset.filter);
+      });
+    });
+  }
+
+  var productsSub = document.getElementById('productsSub');
+  if (productsSub) {
+    productsSub.innerHTML = '<a class="sp-sub-link" href="#shop" onclick="filterFromMenu(\'all\')">All Goodies</a>' + 
+      window.FB_CATEGORIES.map(function(c) {
+        return '<a class="sp-sub-link" href="#shop" onclick="filterFromMenu(\'' + c.id + '\')">' + c.name + '</a>';
+      }).join('');
+  }
+
+  var footerProducts = document.getElementById('footerProductsList');
+  if (footerProducts) {
+    footerProducts.innerHTML = window.FB_CATEGORIES.map(function(c) {
+      return '<li><a href="#shop" onclick="filterFromMenu(\'' + c.id + '\')">' + c.name + '</a></li>';
+    }).join('');
+  }
+}
 </script>
 </body>
 </html>
