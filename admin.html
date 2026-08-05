@@ -338,9 +338,14 @@
   <div class="tab-panel" id="tab-products">
     <div class="prod-panel-header">
       <div class="prod-panel-info">Manage your product catalog. Add new products, edit existing ones, or remove them.</div>
-      <button class="action-btn primary" onclick="openAddProduct()">
-        <span style="font-size:1.1rem">+</span> Add New Product
-      </button>
+      <div style="display:flex;gap:10px;">
+        <button class="action-btn" onclick="openManageCategories()" style="background:var(--sand);color:var(--text)">
+          Manage Categories
+        </button>
+        <button class="action-btn primary" onclick="openAddProduct()">
+          <span style="font-size:1.1rem">+</span> Add New Product
+        </button>
+      </div>
     </div>
     <div class="prod-grid" id="prodGrid"></div>
   </div>
@@ -406,12 +411,7 @@
     <div class="pm-grid">
       <div class="pm-field full"><label>Product Name *</label><input type="text" id="pmName" placeholder="e.g. Lavender Dream"/></div>
       <div class="pm-field"><label>Category *</label>
-        <select id="pmCategory">
-          <option value="resin">Resin</option>
-          <option value="candles">Candles</option>
-          <option value="gypsum">Gypsum</option>
-          <option value="her-favorites">Her favorites</option>
-        </select>
+        <select id="pmCategory"></select>
       </div>
       <div class="pm-field"><label>Price (EGP) *</label><input type="number" id="pmPrice" placeholder="450" min="0"/></div>
       <div class="pm-field full"><label>Scent / Short Description *</label><input type="text" id="pmScent" placeholder="e.g. French lavender · Honey · Soft musk"/></div>
@@ -429,6 +429,22 @@
     </div>
     <input type="hidden" id="pmEditId" value=""/>
     <button class="pm-save-btn" onclick="saveProduct()">✿ Save Product</button>
+  </div>
+</div>
+
+<!-- ═══════════════ CATEGORY MODAL ═══════════════ -->
+<div class="modal-overlay" id="categoryModalOverlay" onclick="closeModal('categoryModalOverlay','categoryModal')"></div>
+<div class="modal-panel" id="categoryModal" style="width:min(500px,94vw)">
+  <div class="pm-head">
+    <div class="pm-title">Manage Categories</div>
+    <button class="pm-close" onclick="closeModal('categoryModalOverlay','categoryModal')">✕</button>
+  </div>
+  <div class="pm-body">
+    <div style="display:flex;gap:10px;margin-bottom:20px;">
+      <input type="text" id="newCatName" placeholder="New Category Name" style="flex:1;padding:12px;border:1px solid #ddd;border-radius:12px;" onkeypress="if(event.key==='Enter')addCategory()"/>
+      <button class="action-btn primary" onclick="addCategory()">Add</button>
+    </div>
+    <div id="catList" style="display:flex;flex-direction:column;gap:10px;"></div>
   </div>
 </div>
 
@@ -854,6 +870,61 @@ function confirmDelete(id,name){
   document.getElementById('confirmOverlay').classList.add('open');
   document.getElementById('confirmDialog').classList.add('open');
 }
+
+// ═══════════════════════════════════════════════════════════
+//  CATEGORIES
+// ═══════════════════════════════════════════════════════════
+function renderCategoryDropdown() {
+  var sel = document.getElementById('pmCategory');
+  if(!sel) return;
+  sel.innerHTML = window.FB_CATEGORIES.map(function(c) {
+    return '<option value="' + c.id + '">' + c.name + '</option>';
+  }).join('');
+}
+
+function openManageCategories() {
+  renderCategoryList();
+  openModal('categoryModalOverlay','categoryModal');
+}
+
+function renderCategoryList() {
+  var list = document.getElementById('catList');
+  if(!list) return;
+  list.innerHTML = window.FB_CATEGORIES.map(function(c) {
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid #eee;border-radius:12px;">' +
+      '<div>' + c.name + ' <span style="color:#999;font-size:0.8em">(' + c.id + ')</span></div>' +
+      '<button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:1.2rem;" onclick="deleteCategory(\'' + c.id + '\')">✕</button>' +
+    '</div>';
+  }).join('');
+}
+
+function addCategory() {
+  var name = document.getElementById('newCatName').value.trim();
+  if(!name) return;
+  var id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  if(!id) return;
+  if(window.FB_CATEGORIES.some(function(c) { return c.id === id; })) {
+    showToast('⚠️ Category already exists');
+    return;
+  }
+  window.FB_CATEGORIES.push({id: id, name: name});
+  document.getElementById('newCatName').value = '';
+  saveCategories();
+}
+
+function deleteCategory(id) {
+  if(!confirm('Are you sure you want to delete this category?')) return;
+  window.FB_CATEGORIES = window.FB_CATEGORIES.filter(function(c) { return c.id !== id; });
+  saveCategories();
+}
+
+function saveCategories() {
+  db.ref('/sc_categories').set(JSON.stringify(window.FB_CATEGORIES)).then(function() {
+    renderCategoryList();
+    renderCategoryDropdown();
+    showToast('✿ Categories updated');
+  });
+}
 function closeConfirm(){
   document.getElementById('confirmOverlay').classList.remove('open');
   document.getElementById('confirmDialog').classList.remove('open');
@@ -1156,6 +1227,14 @@ window.DB_REF = db.ref('/');
 
 db.ref('/').once('value').then(function(snapshot) {
   var data = snapshot.val() || {};
+  window.FB_CATEGORIES = data.sc_categories ? JSON.parse(data.sc_categories) : [
+    {id: 'resin', name: 'Resin'},
+    {id: 'candles', name: 'Candles'},
+    {id: 'gypsum', name: 'Gypsum'},
+    {id: 'her-favorites', name: 'Her favorites'}
+  ];
+  renderCategoryDropdown();
+
   window.FB_CUSTOM_PRODUCTS = data.sc_custom_products ? JSON.parse(data.sc_custom_products) : [];
   window.FB_DELETED_PRODUCTS = data.sc_deleted_products ? JSON.parse(data.sc_deleted_products) : [];
   window.FB_ORDERS = data.sc_orders ? JSON.parse(data.sc_orders) : [];
