@@ -893,9 +893,22 @@ function renderCategoryList() {
   list.innerHTML = window.FB_CATEGORIES.map(function(c) {
     return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px;border:1px solid #eee;border-radius:12px;">' +
       '<div>' + c.name + ' <span style="color:#999;font-size:0.8em">(' + c.id + ')</span></div>' +
+      '<div>' +
+      '<button style="background:none;border:none;cursor:pointer;font-size:1.1rem;margin-right:10px;" onclick="editCategory(\'' + c.id + '\')">✏️</button>' +
       '<button style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:1.2rem;" onclick="deleteCategory(\'' + c.id + '\')">✕</button>' +
+      '</div>' +
     '</div>';
   }).join('');
+}
+
+function editCategory(id) {
+  var cat = window.FB_CATEGORIES.find(function(c) { return c.id === id; });
+  if(!cat) return;
+  var newName = prompt('Enter new name for category:', cat.name);
+  if(newName !== null && newName.trim() !== '') {
+    cat.name = newName.trim();
+    saveCategories();
+  }
 }
 
 function addCategory() {
