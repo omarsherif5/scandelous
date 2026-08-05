@@ -1150,8 +1150,8 @@ function openDetail(id) {
   var meta = '';
   if (p.burnTime) meta += '<div class="detail-meta-item"><div class="detail-meta-label">Burn Time</div><div class="detail-meta-val">' + p.burnTime + '</div></div>';
   if (p.weight)   meta += '<div class="detail-meta-item"><div class="detail-meta-label">Weight</div><div class="detail-meta-val">' + p.weight + '</div></div>';
-  meta += '<div class="detail-meta-item"><div class="detail-meta-label">Material</div><div class="detail-meta-val">100% Natural Soy</div></div>';
-  meta += '<div class="detail-meta-item"><div class="detail-meta-label">Wick</div><div class="detail-meta-val">Lead-Free Cotton</div></div>';
+  if (p.material) meta += '<div class="detail-meta-item"><div class="detail-meta-label">Material</div><div class="detail-meta-val">' + p.material + '</div></div>';
+  if (p.wick)     meta += '<div class="detail-meta-item"><div class="detail-meta-label">Wick</div><div class="detail-meta-val">' + p.wick + '</div></div>';
   document.getElementById('detailMeta').innerHTML = meta;
   
   var addBtn = document.getElementById('detailAddBtn');

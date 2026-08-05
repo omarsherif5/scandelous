@@ -418,6 +418,8 @@
       <div class="pm-field full"><label>Full Description</label><textarea id="pmDesc" placeholder="Describe your product in detail..."></textarea></div>
       <div class="pm-field"><label>Burn Time</label><input type="text" id="pmBurn" placeholder="e.g. 55–60 hrs"/></div>
       <div class="pm-field"><label>Weight</label><input type="text" id="pmWeight" placeholder="e.g. 280g"/></div>
+      <div class="pm-field"><label>Material</label><input type="text" id="pmMaterial" placeholder="e.g. 100% Natural Soy"/></div>
+      <div class="pm-field"><label>Wick</label><input type="text" id="pmWick" placeholder="e.g. Lead-Free Cotton"/></div>
       <div class="pm-field"><label>Badge</label>
         <select id="pmBadge"><option value="">None</option><option value="New Arrival">New Arrival</option><option value="Best Seller">Best Seller</option><option value="Limited">Limited</option><option value="Gift Set">Gift Set</option></select>
       </div>
@@ -686,6 +688,8 @@ function editProduct(id){
   document.getElementById('pmDesc').value=p.desc||'';
   document.getElementById('pmBurn').value=p.burnTime||'';
   document.getElementById('pmWeight').value=p.weight||'';
+  document.getElementById('pmMaterial').value=p.material||'';
+  document.getElementById('pmWick').value=p.wick||'';
   document.getElementById('pmBadge').value=p.badge||'';
   document.getElementById('pmColor').value=p.color||'#D9A8A8';
   document.getElementById('pmAvailableColors').value=(p.colors||[]).join(', ');
@@ -705,7 +709,7 @@ function editProduct(id){
 }
 
 function clearProductForm(){
-  ['pmName','pmScent','pmDesc','pmBurn','pmWeight','pmImageUrl'].forEach(function(id){document.getElementById(id).value=''});
+  ['pmName','pmScent','pmDesc','pmBurn','pmWeight','pmImageUrl','pmMaterial','pmWick'].forEach(function(id){document.getElementById(id).value=''});
   document.getElementById('pmCategory').value='resin';
   document.getElementById('pmPrice').value='';
   document.getElementById('pmBadge').value='';
@@ -787,6 +791,8 @@ function saveProduct(){
   var availableColors=document.getElementById('pmAvailableColors').value;
   var imageUrl=document.getElementById('pmImageUrl').value.trim();
   var stockVal=document.getElementById('pmStock').value.trim();
+  var material=document.getElementById('pmMaterial').value.trim();
+  var wick=document.getElementById('pmWick').value.trim();
   var editId=document.getElementById('pmEditId').value;
 
   if(!name){showToast('⚠️ Enter a product name');return}
@@ -808,7 +814,7 @@ function saveProduct(){
 
   if(editId){
     editId=parseInt(editId);
-    var prodData={id:editId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,inStock:true,color:color,colors:colorsArr};
+    var prodData={id:editId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr};
     if(isCustomProduct(editId)){
       customProducts=customProducts.map(function(p){return p.id===editId?prodData:p});
     } else {
@@ -827,7 +833,7 @@ function saveProduct(){
     PRODUCTS.forEach(function(p){if(p.id>=maxId)maxId=p.id+1});
     customProducts.forEach(function(p){if(p.id>=maxId)maxId=p.id+1});
     maxId++;
-    var newProd={id:maxId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,inStock:true,color:color,colors:colorsArr};
+    var newProd={id:maxId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr};
     customProducts.push(newProd);PRODUCTS.push(newProd);
     if(stockVal!=='')setProductStock(maxId,parseInt(stockVal));
     showToast('✿ "'+name+'" added!');
