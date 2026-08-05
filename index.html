@@ -55,9 +55,9 @@
     .cart-count.hidden{display:none}
 
     /* ── SIDE PANEL ── */
-    .side-overlay{position:fixed;inset:0;background:rgba(45,36,32,.35);backdrop-filter:blur(4px);z-index:998;opacity:0;pointer-events:none;transition:opacity .4s ease}
+    .side-overlay{position:fixed;inset:0;background:rgba(45,36,32,.35);backdrop-filter:blur(4px);z-index:1002;opacity:0;pointer-events:none;transition:opacity .4s ease}
     .side-overlay.open{opacity:1;pointer-events:all}
-    .side-panel{position:fixed;top:0;left:0;width:min(360px,85vw);height:100vh;background:var(--ivory);z-index:999;transform:translateX(-100%);transition:transform .5s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:8px 0 40px rgba(110,76,76,.08)}
+    .side-panel{position:fixed;top:0;left:0;width:min(360px,85vw);height:100vh;background:var(--ivory);z-index:1003;transform:translateX(-100%);transition:transform .5s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:8px 0 40px rgba(110,76,76,.08)}
     .side-panel.open{transform:translateX(0)}
     .side-panel-header{padding:28px 32px 20px;border-bottom:1px solid var(--sand)}
     .side-panel-header h3{font-family:'Cormorant Garamond',serif;font-size:1.5rem;font-weight:400;color:var(--charcoal);letter-spacing:.15em;margin:0}
