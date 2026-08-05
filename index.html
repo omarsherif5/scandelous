@@ -141,15 +141,10 @@
     .feat-text{font-size:.95rem;line-height:1.8;color:var(--char-lt);font-weight:300}
 
     /* ── ABOUT ── */
-    #about{display:grid;grid-template-columns:1fr 1fr;gap:90px;align-items:center;padding:130px 80px;background:var(--ivory)}
-    .about-vis{position:relative;height:560px;border-radius:32px;overflow:hidden;background:var(--sand);display:flex;align-items:center;justify-content:center}
-    .about-main{position:absolute;inset:0;background:var(--sand);display:flex;align-items:center;justify-content:center}
-    /* Removed flower background */
-    .about-main img{width:220px;filter:none;mix-blend-mode:multiply;opacity:0.7}
-    .about-accent{display:none} /* removed heavy block */
-    .about-content{text-align:left;padding-right:40px}
+    #about{padding:130px 80px;background:var(--ivory)}
+    .about-content{max-width:740px;margin:0 auto;text-align:center;}
     .about-text{font-size:1.05rem;line-height:2;color:var(--char-lt);margin-bottom:24px;font-weight:300}
-    .about-stats{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:50px;border-top:1px solid var(--sand);padding-top:40px}
+    .about-stats{display:flex;justify-content:center;gap:80px;margin-top:50px;border-top:1px solid var(--sand);padding-top:40px}
     .stat-n{font-family:'Cormorant Garamond',serif;font-size:3rem;font-weight:300;color:var(--terra);line-height:1}
     .stat-l{font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:var(--char-lt);margin-top:8px}
 
@@ -454,13 +449,6 @@
 
 <!-- ABOUT -->
 <section id="about">
-  <div class="about-vis">
-    <div class="about-main"><img src="logo.jpeg" alt="About"/></div>
-    <div class="about-accent">
-      <span class="about-num">01</span>
-      <p class="about-quote">"You are allowed to grow at your own pace."</p>
-    </div>
-  </div>
   <div class="about-content">
     <span class="section-tag">Our Mission</span>
     <h2 class="section-title">For the <em>woman</em> who finds joy in little rituals.</h2>
