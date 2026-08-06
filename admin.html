@@ -413,7 +413,14 @@
       <div class="pm-field"><label>Category *</label>
         <select id="pmCategory"></select>
       </div>
-      <div class="pm-field"><label>Price (EGP) *</label><input type="number" id="pmPrice" placeholder="450" min="0"/></div>
+      <div class="pm-field"><label>Base Price (EGP) *</label><input type="number" id="pmPrice" placeholder="450" min="0"/></div>
+      <div class="pm-field" style="grid-column:1/-1">
+        <label style="display:flex;justify-content:space-between;align-items:center;">
+          Pricing Options (e.g. Sets / Sizes)
+          <button type="button" style="background:var(--sand);color:var(--charcoal);border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;" onclick="addPricingRow()">+ Add Option</button>
+        </label>
+        <div id="pmPricingContainer" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;"></div>
+      </div>
       <div class="pm-field full"><label>Scent / Short Description *</label><input type="text" id="pmScent" placeholder="e.g. French lavender · Honey · Soft musk"/></div>
       <div class="pm-field full"><label>Full Description</label><textarea id="pmDesc" placeholder="Describe your product in detail..."></textarea></div>
       <div class="pm-field"><label>Burn Time</label><input type="text" id="pmBurn" placeholder="e.g. 55–60 hrs"/></div>
@@ -726,6 +733,11 @@ function editProduct(id){
     });
   }
 
+  document.getElementById('pmPricingContainer').innerHTML = '';
+  if (p.pricingOptions && p.pricingOptions.length > 0) {
+    p.pricingOptions.forEach(function(o) { addPricingRow(o); });
+  }
+
   var stock=getProductStock(id);
   document.getElementById('pmStock').value=stock!==null?stock:'';
   currentImagesData=[];
@@ -748,6 +760,7 @@ function clearProductForm(){
   document.getElementById('pmBadge').value='';
   document.getElementById('pmColor').value='#D9A8A8';
   document.getElementById('pmVariantsContainer').innerHTML='';
+  document.getElementById('pmPricingContainer').innerHTML='';
   document.getElementById('pmStock').value='';
   currentImagesData=[];removeImage();
 }
@@ -829,6 +842,19 @@ function addVariantRow(variant) {
   c.appendChild(row);
 }
 
+function addPricingRow(opt) {
+  var o = opt || { name: '', price: '' };
+  var c = document.getElementById('pmPricingContainer');
+  var row = document.createElement('div');
+  row.className = 'pricing-row';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;background:var(--ivory);padding:6px;border-radius:6px;border:1px solid var(--sand);';
+  row.innerHTML = 
+    '<input type="text" class="pr-name" placeholder="Option Name (e.g. Set of 3)" value="'+(o.name||'')+'" style="flex:2;padding:6px;font-size:0.75rem;border:1px solid #ddd;border-radius:4px;outline:none;"/>' +
+    '<input type="number" class="pr-price" placeholder="Price (EGP)" value="'+(o.price||'')+'" style="flex:1;padding:6px;font-size:0.75rem;border:1px solid #ddd;border-radius:4px;outline:none;" min="0"/>' +
+    '<button type="button" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:1.1rem;padding:0 4px;" onclick="this.parentElement.remove()" title="Remove Option">✕</button>';
+  c.appendChild(row);
+}
+
 function saveProduct(){
   var name=document.getElementById('pmName').value.trim();
   var category=document.getElementById('pmCategory').value;
@@ -874,9 +900,18 @@ function saveProduct(){
     }
   });
 
+  var pricingOptions = [];
+  document.querySelectorAll('.pricing-row').forEach(function(row) {
+    var prName = row.querySelector('.pr-name').value.trim();
+    var prPrice = parseFloat(row.querySelector('.pr-price').value);
+    if (prName && prPrice > 0) {
+      pricingOptions.push({ name: prName, price: prPrice });
+    }
+  });
+
   if(editId){
     editId=parseInt(editId);
-    var prodData={id:editId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr};
+    var prodData={id:editId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr,pricingOptions:pricingOptions};
     if(isCustomProduct(editId)){
       customProducts=customProducts.map(function(p){return p.id===editId?prodData:p});
     } else {
@@ -895,7 +930,7 @@ function saveProduct(){
     PRODUCTS.forEach(function(p){if(p.id>=maxId)maxId=p.id+1});
     customProducts.forEach(function(p){if(p.id>=maxId)maxId=p.id+1});
     maxId++;
-    var newProd={id:maxId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr};
+    var newProd={id:maxId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr,pricingOptions:pricingOptions};
     customProducts.push(newProd);PRODUCTS.push(newProd);
     if(stockVal!=='')setProductStock(maxId,parseInt(stockVal));
     showToast('✿ "'+name+'" added!');

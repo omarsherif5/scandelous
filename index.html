@@ -284,14 +284,16 @@
     .detail-price{font-family:'Cormorant Garamond',serif;font-size:1.7rem;color:var(--charcoal);margin-bottom:16px}
     .detail-add-btn{background:var(--charcoal);color:var(--cream);border:none;padding:15px;font-family:'Jost',sans-serif;font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;cursor:pointer;transition:background .3s;width:100%;border-radius:50px}
     .detail-add-btn:hover{background:var(--terra)}
-    .detail-colors{margin-bottom:16px}
-    .detail-colors-label{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--char-lt);margin-bottom:8px}
     .color-chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .color-chip{border:1.5px solid var(--sand);background:var(--ivory);padding:8px 16px;border-radius:50px;font-size:.75rem;color:var(--charcoal);cursor:pointer;transition:all .3s}
     .color-chip.selected{border-color:var(--terra);background:var(--terra);color:#fff}
     .color-swatch{width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:all .3s;box-shadow:0 2px 5px rgba(0,0,0,0.1);padding:0;}
     .color-swatch:hover{transform:scale(1.1)}
     .color-swatch.selected{border-color:var(--charcoal);box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--charcoal);}
+    
+    .pricing-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}
+    .pricing-chip{border:1.5px solid var(--sand);background:var(--ivory);padding:10px 20px;border-radius:12px;font-size:.8rem;color:var(--charcoal);cursor:pointer;transition:all .3s;text-align:center;}
+    .pricing-chip.selected{border-color:var(--terra);background:var(--terra);color:#fff}
 
     /* ── TOAST ── */
     .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--charcoal);color:var(--cream);padding:12px 26px;font-size:.77rem;letter-spacing:.08em;z-index:9999;transition:transform .4s cubic-bezier(.16,1,.3,1),opacity .4s;opacity:0;white-space:nowrap;pointer-events:none;border-radius:50px;box-shadow:0 8px 28px rgba(45,36,32,.25)}
@@ -577,6 +579,7 @@
       <div class="detail-name" id="detailName"></div>
       <div class="detail-scent" id="detailScent"></div>
       <div class="detail-desc" id="detailDesc"></div>
+      <div class="detail-pricing" id="detailPricing"></div>
       <div class="detail-colors" id="detailColors"></div>
       <div class="detail-meta" id="detailMeta"></div>
       <div class="detail-price" id="detailPrice"></div>
@@ -668,16 +671,17 @@ function updateCartUI() {
       '<div style="flex:1;min-width:0">' +
         '<div class="ci-name">' + item.name + (item.color ? ' - ' + item.color : '') + '</div>' +
         '<div class="ci-controls">' +
-          '<button class="qty-btn" onclick="updateQty(' + item.id + ',\'' + (item.color||'') + '\',-1)">−</button>' +
+          '<button class="qty-btn" onclick="updateQty(' + item.id + ',\'' + (item.color||'') + '\',\'' + (item.pricingOption||'') + '\',-1)">−</button>' +
           '<span class="qty-num">' + item.qty + '</span>' +
-          '<button class="qty-btn" onclick="updateQty(' + item.id + ',\'' + (item.color||'') + '\',1)">+</button>' +
+          '<button class="qty-btn" onclick="updateQty(' + item.id + ',\'' + (item.color||'') + '\',\'' + (item.pricingOption||'') + '\',1)">+</button>' +
         '</div>' +
         '<div class="ci-row2">' +
-          '<span class="ci-price">' + fmt(item.price * item.qty) + '</span>' +
-          '<button class="ci-remove" onclick="removeItem(' + item.id + ',\'' + (item.color||'') + '\')">Remove</button>' +
+          '<span class="ci-price">' + fmt(price * item.qty) + '</span>' +
+          '<button class="ci-remove" onclick="updateQty(' + item.id + ',\'' + (item.color||'') + '\',\'' + (item.pricingOption||'') + '\',-999)">Remove</button>' +
         '</div>' +
       '</div></div>';
-  }).join('');
+  });
+  iEl.innerHTML = html;
 
   var t = cartTotals();
   document.getElementById('cartSubtotal').textContent = fmt(t.sub);
@@ -691,7 +695,7 @@ function updateCartUI() {
   }
 }
 
-function addToCart(id, colorOverride) {
+function addToCart(id, colorOverride, pricingOptionOverride) {
   var p = PRODUCTS.find(function(x) { return x.id === id; });
   if (!p) return;
   var colorToUse = colorOverride || null;
@@ -706,7 +710,25 @@ function addToCart(id, colorOverride) {
     }
   }
 
-  var ex = cart.find(function(x) { return x.id === id && x.color === colorToUse; });
+  var pricingOptionToUse = pricingOptionOverride || null;
+  if (!pricingOptionToUse && p.pricingOptions && p.pricingOptions.length > 0) {
+     if (document.getElementById('detailModal').classList.contains('open')) {
+       showToast('⚠️ Please select a pricing option first');
+       return;
+    } else {
+       openDetail(id);
+       showToast('⚠️ Please select a pricing option first');
+       return;
+    }
+  }
+
+  var finalPrice = p.price;
+  if (pricingOptionToUse) {
+    var opt = p.pricingOptions.find(function(o){return o.name===pricingOptionToUse});
+    if(opt) finalPrice = opt.price;
+  }
+
+  var ex = cart.find(function(x) { return x.id === id && x.color === colorToUse && x.pricingOption === pricingOptionToUse; });
   var currentQty = ex ? ex.qty : 0;
   var stock = getProductStock(id);
   
@@ -719,15 +741,15 @@ function addToCart(id, colorOverride) {
   else { 
     var firstImg = p.images && p.images.length > 0 ? p.images[0] : (p.image || '');
     var cleanName = p.name.split('(')[0].trim();
-    cart.push({ id: p.id, name: cleanName, price: p.price, image: firstImg, color: colorToUse, qty: 1 }); 
+    cart.push({ id: p.id, name: cleanName, price: finalPrice, image: firstImg, color: colorToUse, pricingOption: pricingOptionToUse, qty: 1 }); 
   }
   saveCart();
   updateCartUI();
   showToast(p.name + ' added to bag');
 }
 
-function updateQty(id, color, d) {
-  var item = cart.find(function(x) { return x.id === id && (x.color||'') === color; });
+function updateQty(id, color, pricingOption, d) {
+  var item = cart.find(function(x) { return x.id === id && (x.color||'') === color && (x.pricingOption||'') === pricingOption; });
   if (!item) return;
   
   var stock = getProductStock(id);
@@ -1107,6 +1129,8 @@ function openDetail(id) {
   document.getElementById('detailScent').textContent = p.scent;
   document.getElementById('detailDesc').textContent  = p.desc;
   document.getElementById('detailPrice').textContent = fmt(p.price);
+  document.getElementById('detailPrice').dataset.basePrice = p.price;
+  
   var meta = '';
   if (p.burnTime) meta += '<div class="detail-meta-item"><div class="detail-meta-label">Burn Time</div><div class="detail-meta-val">' + p.burnTime + '</div></div>';
   if (p.weight)   meta += '<div class="detail-meta-item"><div class="detail-meta-label">Weight</div><div class="detail-meta-val">' + p.weight + '</div></div>';
@@ -1118,6 +1142,23 @@ function openDetail(id) {
   var stock = getProductStock(id);
   
   currentSelectedColor = null;
+  currentSelectedPricingOption = null;
+
+  var pricingHtml = '';
+  if (p.pricingOptions && p.pricingOptions.length > 0) {
+    pricingHtml = '<div class="detail-colors-label">Select Option:</div><div class="pricing-chips">';
+    p.pricingOptions.forEach(function(o, idx) {
+      var isSelected = idx === 0 ? 'selected' : '';
+      if (idx === 0) {
+        currentSelectedPricingOption = o.name;
+        document.getElementById('detailPrice').textContent = fmt(o.price);
+      }
+      pricingHtml += '<button class="pricing-chip '+isSelected+'" onclick="selectPricingOption(this, \''+o.name+'\', '+o.price+')">' + o.name + ' - ' + fmt(o.price) + '</button>';
+    });
+    pricingHtml += '</div>';
+  }
+  document.getElementById('detailPricing').innerHTML = pricingHtml;
+
   var colorHtml = '';
   if (p.colors && p.colors.length > 0) {
     colorHtml = '<div class="detail-colors-label">Select Color:</div><div class="color-chips">';
@@ -1146,10 +1187,10 @@ function openDetail(id) {
   } else {
     addBtn.textContent = 'Add to Bag';
     addBtn.style.opacity = '1';
-    addBtn.style.cursor = 'none';
+    addBtn.style.cursor = 'pointer';
     addBtn.onclick = function() {
-      addToCart(p.id, currentSelectedColor);
-      if ((!p.colors || p.colors.length === 0) || currentSelectedColor) {
+      addToCart(p.id, currentSelectedColor, currentSelectedPricingOption);
+      if (((!p.colors || p.colors.length === 0) || currentSelectedColor) && ((!p.pricingOptions || p.pricingOptions.length === 0) || currentSelectedPricingOption)) {
         closeDetail();
       }
     };
@@ -1162,6 +1203,14 @@ function closeDetail() {
   document.getElementById('detailModal').classList.remove('open');
   document.body.style.overflow = '';
 }
+
+window.selectPricingOption = function(btn, name, price) {
+  var chips = document.querySelectorAll('.pricing-chip');
+  chips.forEach(function(c) { c.classList.remove('selected'); });
+  btn.classList.add('selected');
+  currentSelectedPricingOption = name;
+  document.getElementById('detailPrice').textContent = fmt(price);
+};
 
 window.selectColor = function(btn, color, imgIdx) {
   var chips = document.querySelectorAll('.color-chip, .color-swatch');
@@ -1218,6 +1267,14 @@ function renderProducts(filter) {
     
     var catObj = window.FB_CATEGORIES ? window.FB_CATEGORIES.find(function(c) { return c.id === p.category; }) : null;
     var cName = catObj ? catObj.name : p.category;
+    
+    var priceDisplay = fmt(p.price);
+    if (p.pricingOptions && p.pricingOptions.length > 0) {
+      var minPrice = p.price;
+      p.pricingOptions.forEach(function(o) { if (o.price < minPrice) minPrice = o.price; });
+      priceDisplay = 'From ' + fmt(minPrice);
+    }
+    
     return '<div class="product-card reveal" style="transition-delay:' + (i * 55) + 'ms;' + (isOut ? 'opacity:0.6' : '') + '">' +
       '<div class="card-img">' +
         '<div class="card-img-scroll">' + imgsHtml + '</div>' +
@@ -1230,7 +1287,7 @@ function renderProducts(filter) {
         '<div class="card-name">' + p.name + '</div>' +
         '<div class="card-scent">' + p.scent + '</div>' +
         '<div class="card-footer">' +
-          '<div class="card-price">' + fmt(p.price) + '</div>' +
+          '<div class="card-price">' + priceDisplay + '</div>' +
           (isOut ? '<button class="add-to-cart" style="cursor:not-allowed;background:var(--sand)" disabled>×</button>' : '<button class="add-to-cart" onclick="addToCart(' + p.id + ')">+</button>') +
         '</div>' +
       '</div>' +
