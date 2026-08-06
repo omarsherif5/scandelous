@@ -549,6 +549,7 @@ function updateOrderStatus(orderNum,newStatus){
     return o;
   });
   saveOrders(orders);
+  renderStats(orders);
   showToast('✿ Order #'+orderNum+' → '+newStatus.charAt(0).toUpperCase()+newStatus.slice(1));
 }
 
