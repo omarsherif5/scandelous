@@ -47,7 +47,7 @@
     .sp-link:hover{background:var(--blush-lt);color:var(--terra);padding-left:38px}
     .sp-link-arrow{font-size:.7rem;transition:transform .3s;color:var(--char-lt)}
     .sp-link-arrow.rotated{transform:rotate(90deg)}
-    .sp-sub{max-height:0;overflow:hidden;transition:max-height .45s cubic-bezier(.4,0,.2,1);background:var(--warm)}
+    .sp-sub{max-height:0;overflow:hidden;transition:max-height .45s cubic-bezier(.4,0,.2,1);background:transparent}
     .sp-sub.open{max-height:400px}
     .sp-sub-link{display:block;padding:12px 32px 12px 48px;font-family:'Jost',sans-serif;font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:var(--char-lt);text-decoration:none;transition:all .3s;cursor:pointer;position:relative}
     .sp-sub-link::before{content:'';position:absolute;left:36px;top:50%;width:4px;height:4px;border-radius:50%;background:var(--terra);transform:translateY(-50%) scale(0);transition:transform .3s}
@@ -371,6 +371,11 @@
       <a class="sp-sub-link" href="#shop" onclick="filterFromMenu('her-favorites')">Her Favorites</a>
     </div>
     <a class="sp-link" href="#about" onclick="closeSidePanel()">About</a>
+    <div style="flex:1"></div>
+    <div style="padding:40px 32px; text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; opacity:0.7;">
+      <div style="width:1px; height:40px; background:var(--terra); opacity:0.3;"></div>
+      <p style="font-family:'Cormorant Garamond', serif; font-style:italic; font-size:1.3rem; color:var(--charcoal); line-height:1.4; margin:0;">Handpoured with intention.<br/>Light up your world.</p>
+    </div>
   </nav>
   <div class="side-panel-footer">
     <a href="https://www.instagram.com/s.candle.ous" target="_blank" class="sp-social">
