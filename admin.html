@@ -525,13 +525,14 @@ function saveOrders(o) {
 }
 
 function renderStats(orders){
-  var total=orders.reduce(function(a,o){return a+o.total},0);
-  var items=orders.reduce(function(a,o){return a+o.items.reduce(function(b,i){return b+i.qty},0)},0);
+  var validOrders=orders.filter(function(o){return o.status!=='cancelled'});
+  var total=validOrders.reduce(function(a,o){return a+o.total},0);
+  var items=validOrders.reduce(function(a,o){return a+o.items.reduce(function(b,i){return b+i.qty},0)},0);
   document.getElementById('statsRow').innerHTML=
-    '<div class="stat-card"><div class="stat-card-n">'+orders.length+'</div><div class="stat-card-l">Total Orders</div></div>'+
+    '<div class="stat-card"><div class="stat-card-n">'+validOrders.length+'</div><div class="stat-card-l">Total Orders</div></div>'+
     '<div class="stat-card green"><div class="stat-card-n">'+fmt(total)+'</div><div class="stat-card-l">Total Revenue</div></div>'+
     '<div class="stat-card blue"><div class="stat-card-n">'+items+'</div><div class="stat-card-l">Items Sold</div></div>'+
-    '<div class="stat-card"><div class="stat-card-n">'+(orders.length?fmt(Math.round(total/orders.length)):fmt(0))+'</div><div class="stat-card-l">Avg Order Value</div></div>';
+    '<div class="stat-card"><div class="stat-card-n">'+(validOrders.length?fmt(Math.round(total/validOrders.length)):fmt(0))+'</div><div class="stat-card-l">Avg Order Value</div></div>';
 }
 
 function getStatusBadge(status){
@@ -1154,7 +1155,8 @@ function clearDateFilter(){
 }
 
 function renderReports(){
-  var orders=getFilteredOrders();
+  var allFiltered=getFilteredOrders();
+  var orders=allFiltered.filter(function(o){return o.status!=='cancelled'});
   var totalRev=orders.reduce(function(a,o){return a+o.total},0);
   var totalItems=orders.reduce(function(a,o){return a+o.items.reduce(function(b,i){return b+i.qty},0)},0);
   var totalDiscount=orders.reduce(function(a,o){return a+(o.discount||0)},0);
@@ -1230,9 +1232,9 @@ function renderReports(){
 
   // Order status breakdown
   var statusCounts={received:0,processing:0,shipped:0,delivered:0,cancelled:0};
-  orders.forEach(function(o){var s=o.status||'received';statusCounts[s]=(statusCounts[s]||0)+1});
+  allFiltered.forEach(function(o){var s=o.status||'received';statusCounts[s]=(statusCounts[s]||0)+1});
   var statusColors={received:'#E65100',processing:'#1565C0',shipped:'#7B1FA2',delivered:'#2E7D32',cancelled:'#C62828'};
-  var totalOrders=orders.length||1;
+  var totalOrders=allFiltered.length||1;
 
   var statusHtml='<div class="report-card"><h3>📋 Order Status Breakdown</h3><div class="status-breakdown">';
   ['received','processing','shipped','delivered','cancelled'].forEach(function(s){
