@@ -286,9 +286,12 @@
     .detail-add-btn:hover{background:var(--terra)}
     .detail-colors{margin-bottom:16px}
     .detail-colors-label{font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--char-lt);margin-bottom:8px}
-    .color-chips{display:flex;gap:8px;flex-wrap:wrap}
+    .color-chips{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
     .color-chip{border:1.5px solid var(--sand);background:var(--ivory);padding:8px 16px;border-radius:50px;font-size:.75rem;color:var(--charcoal);cursor:pointer;transition:all .3s}
     .color-chip.selected{border-color:var(--terra);background:var(--terra);color:#fff}
+    .color-swatch{width:32px;height:32px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:all .3s;box-shadow:0 2px 5px rgba(0,0,0,0.1);padding:0;}
+    .color-swatch:hover{transform:scale(1.1)}
+    .color-swatch.selected{border-color:var(--charcoal);box-shadow:0 0 0 2px #fff, 0 0 0 4px var(--charcoal);}
 
     /* ── TOAST ── */
     .toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--charcoal);color:var(--cream);padding:12px 26px;font-size:.77rem;letter-spacing:.08em;z-index:9999;transition:transform .4s cubic-bezier(.16,1,.3,1),opacity .4s;opacity:0;white-space:nowrap;pointer-events:none;border-radius:50px;box-shadow:0 8px 28px rgba(45,36,32,.25)}
@@ -1119,7 +1122,17 @@ function openDetail(id) {
   if (p.colors && p.colors.length > 0) {
     colorHtml = '<div class="detail-colors-label">Select Color:</div><div class="color-chips">';
     p.colors.forEach(function(c) {
-      colorHtml += '<button class="color-chip" onclick="selectColor(this, \''+c+'\')">' + c + '</button>';
+      if (typeof c === 'string') {
+        colorHtml += '<button class="color-chip" onclick="selectColor(this, \''+c+'\')">' + c + '</button>';
+      } else {
+        var cName = c.name || '';
+        var idx = (c.imageIndex !== undefined && c.imageIndex !== '') ? c.imageIndex : 'null';
+        if (c.type === 'hex') {
+          colorHtml += '<button class="color-swatch" title="'+cName+'" style="background-color:'+c.hex+'" onclick="selectColor(this, \''+cName+'\', '+idx+')"></button>';
+        } else {
+          colorHtml += '<button class="color-chip" onclick="selectColor(this, \''+cName+'\', '+idx+')">' + cName + '</button>';
+        }
+      }
     });
     colorHtml += '</div>';
   }
@@ -1150,11 +1163,18 @@ function closeDetail() {
   document.body.style.overflow = '';
 }
 
-window.selectColor = function(btn, color) {
-  var chips = document.querySelectorAll('.color-chip');
+window.selectColor = function(btn, color, imgIdx) {
+  var chips = document.querySelectorAll('.color-chip, .color-swatch');
   chips.forEach(function(c) { c.classList.remove('selected'); });
   btn.classList.add('selected');
   currentSelectedColor = color;
+  if (imgIdx !== null && imgIdx !== undefined) {
+    var imgSide = document.getElementById('detailImg');
+    var targetImg = imgSide.children[imgIdx + 1];
+    if (targetImg) {
+      targetImg.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+    }
+  }
 };
 
 // ═══════════════════════════════════════════════════════════

@@ -425,7 +425,13 @@
       </div>
       <div class="pm-field"><label>Stock Quantity</label><input type="number" id="pmStock" placeholder="Leave empty = unlimited" min="0"/></div>
       <div class="pm-field"><label>Placeholder Color</label><input type="color" id="pmColor" value="#D9A8A8" style="height:46px;cursor:pointer"/></div>
-      <div class="pm-field" style="grid-column:1/-1"><label>Available Colors (comma separated)</label><input type="text" id="pmAvailableColors" placeholder="e.g. Red, Blue, Pink"/></div>
+      <div class="pm-field" style="grid-column:1/-1">
+        <label style="display:flex;justify-content:space-between;align-items:center;">
+          Product Variants / Colors
+          <button type="button" style="background:var(--sand);color:var(--charcoal);border:none;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:0.7rem;" onclick="addVariantRow()">+ Add Variant</button>
+        </label>
+        <div id="pmVariantsContainer" style="display:flex;flex-direction:column;gap:8px;margin-top:8px;"></div>
+      </div>
     </div>
     <input type="hidden" id="pmEditId" value=""/>
     <button class="pm-save-btn" onclick="saveProduct()">✿ Save Product</button>
@@ -708,7 +714,18 @@ function editProduct(id){
   document.getElementById('pmWick').value=p.wick||'';
   document.getElementById('pmBadge').value=p.badge||'';
   document.getElementById('pmColor').value=p.color||'#D9A8A8';
-  document.getElementById('pmAvailableColors').value=(p.colors||[]).join(', ');
+  
+  document.getElementById('pmVariantsContainer').innerHTML = '';
+  if (p.colors && p.colors.length > 0) {
+    p.colors.forEach(function(c) {
+      if (typeof c === 'string') {
+        addVariantRow({ name: c, type: 'text' });
+      } else {
+        addVariantRow({ name: c.name, type: c.type, hex: c.hex, imageIndex: c.imageIndex !== undefined ? c.imageIndex + 1 : '' });
+      }
+    });
+  }
+
   var stock=getProductStock(id);
   document.getElementById('pmStock').value=stock!==null?stock:'';
   currentImagesData=[];
@@ -730,7 +747,7 @@ function clearProductForm(){
   document.getElementById('pmPrice').value='';
   document.getElementById('pmBadge').value='';
   document.getElementById('pmColor').value='#D9A8A8';
-  document.getElementById('pmAvailableColors').value='';
+  document.getElementById('pmVariantsContainer').innerHTML='';
   document.getElementById('pmStock').value='';
   currentImagesData=[];removeImage();
 }
@@ -794,6 +811,24 @@ function removeImage(){
   });
 })();
 
+function addVariantRow(variant) {
+  var v = variant || { name: '', type: 'text', hex: '#ff0000', imageIndex: '' };
+  var c = document.getElementById('pmVariantsContainer');
+  var row = document.createElement('div');
+  row.className = 'variant-row';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;background:var(--ivory);padding:6px;border-radius:6px;border:1px solid var(--sand);';
+  row.innerHTML = 
+    '<input type="text" class="var-name" placeholder="Name (e.g. Ruby Red)" value="'+(v.name||'')+'" style="flex:2;padding:6px;font-size:0.75rem;border:1px solid #ddd;border-radius:4px;outline:none;"/>' +
+    '<select class="var-type" style="padding:6px;font-size:0.75rem;border:1px solid #ddd;border-radius:4px;outline:none;" onchange="this.nextElementSibling.style.display=this.value==\'hex\'?\'block\':\'none\'">' +
+      '<option value="text" '+(v.type==='text'?'selected':'')+'>Text</option>' +
+      '<option value="hex" '+(v.type==='hex'?'selected':'')+'>Color</option>' +
+    '</select>' +
+    '<input type="color" class="var-hex" value="'+(v.hex||'#ff0000')+'" style="display:'+(v.type==='hex'?'block':'none')+';height:28px;width:30px;cursor:pointer;padding:0;border:none;background:none;"/>' +
+    '<input type="number" class="var-img" placeholder="Img # (e.g. 1)" value="'+(v.imageIndex!==undefined?v.imageIndex:'')+'" style="flex:1;padding:6px;font-size:0.75rem;border:1px solid #ddd;border-radius:4px;outline:none;" title="1 for 1st image, 2 for 2nd, etc." min="1"/>' +
+    '<button type="button" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:1.1rem;padding:0 4px;" onclick="this.parentElement.remove()" title="Remove Variant">✕</button>';
+  c.appendChild(row);
+}
+
 function saveProduct(){
   var name=document.getElementById('pmName').value.trim();
   var category=document.getElementById('pmCategory').value;
@@ -804,7 +839,6 @@ function saveProduct(){
   var weight=document.getElementById('pmWeight').value.trim();
   var badge=document.getElementById('pmBadge').value;
   var color=document.getElementById('pmColor').value;
-  var availableColors=document.getElementById('pmAvailableColors').value;
   var imageUrl=document.getElementById('pmImageUrl').value.trim();
   var stockVal=document.getElementById('pmStock').value.trim();
   var material=document.getElementById('pmMaterial').value.trim();
@@ -826,7 +860,19 @@ function saveProduct(){
 
   var customProducts=getCustomProducts();
 
-  var colorsArr = availableColors ? availableColors.split(',').map(function(s){return s.trim();}).filter(function(s){return s;}) : [];
+  var colorsArr = [];
+  document.querySelectorAll('.variant-row').forEach(function(row) {
+    var vName = row.querySelector('.var-name').value.trim();
+    var vType = row.querySelector('.var-type').value;
+    var vHex = row.querySelector('.var-hex').value;
+    var vImg = row.querySelector('.var-img').value;
+    if (vName) {
+      var variant = { name: vName, type: vType };
+      if (vType === 'hex') variant.hex = vHex;
+      if (vImg && !isNaN(parseInt(vImg))) variant.imageIndex = parseInt(vImg) - 1;
+      colorsArr.push(variant);
+    }
+  });
 
   if(editId){
     editId=parseInt(editId);
