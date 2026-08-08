@@ -1378,9 +1378,20 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 window.DB_REF = db.ref('/');
 
-db.ref('/').once('value').then(function(snapshot) {
-  var data = snapshot.val() || {};
-  console.log('Firebase raw data keys:', Object.keys(data));
+Promise.all([
+  db.ref('sc_categories').once('value'),
+  db.ref('sc_custom_products').once('value'),
+  db.ref('sc_deleted_products').once('value'),
+  db.ref('sc_stock').once('value'),
+  db.ref('sc_promo_codes').once('value')
+]).then(function(snapshots) {
+  var data = {
+    sc_categories: snapshots[0].val(),
+    sc_custom_products: snapshots[1].val(),
+    sc_deleted_products: snapshots[2].val(),
+    sc_stock: snapshots[3].val(),
+    sc_promo_codes: snapshots[4].val()
+  };
   
   window.FB_CATEGORIES = data.sc_categories ? JSON.parse(data.sc_categories) : [
     {id: 'resin', name: 'Resin'},
