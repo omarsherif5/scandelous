@@ -64,7 +64,11 @@ function getStockMap() {
 }
 function saveStockMap(map) {
   window.FB_STOCK = map;
-  if(window.DB_REF) window.DB_REF.child('sc_stock').set(JSON.stringify(map));
+  if(window.DB_REF) {
+    window.DB_REF.child('sc_stock').set(JSON.stringify(map)).catch(function(err) {
+      console.error('Failed to save stock to Firebase:', err);
+    });
+  }
 }
 function getProductStock(id) {
   var map = getStockMap();
@@ -93,7 +97,11 @@ function getPromoCodes() {
 }
 function savePromoCodes(list) {
   window.FB_PROMO_CODES = list;
-  if(window.DB_REF) window.DB_REF.child('sc_promo_codes').set(JSON.stringify(list));
+  if(window.DB_REF) {
+    window.DB_REF.child('sc_promo_codes').set(JSON.stringify(list)).catch(function(err) {
+      console.error('Failed to save promo codes to Firebase:', err);
+    });
+  }
 }
 
 // ─────────────────────────────────────────────────────

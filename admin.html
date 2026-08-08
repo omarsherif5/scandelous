@@ -521,7 +521,12 @@ window.FB_ORDERS = [];
 function getOrders() { return window.FB_ORDERS; }
 function saveOrders(o) {
   window.FB_ORDERS = o;
-  if(window.DB_REF) window.DB_REF.child('sc_orders').set(JSON.stringify(o));
+  if(window.DB_REF) {
+    window.DB_REF.child('sc_orders').set(JSON.stringify(o)).catch(function(err) {
+      console.error('Failed to save orders to Firebase:', err);
+      showToast('⚠️ Failed to save orders to database!');
+    });
+  }
 }
 
 function renderStats(orders){
@@ -655,14 +660,29 @@ function adminWhatsApp(orderNum, type){
 window.FB_CUSTOM_PRODUCTS = [];
 window.FB_DELETED_PRODUCTS = [];
 function getCustomProducts() { return window.FB_CUSTOM_PRODUCTS; }
-function saveCustomProducts(l) {
+function saveCustomProducts(l, successCb, errorCb) {
   window.FB_CUSTOM_PRODUCTS = l;
-  if(window.DB_REF) window.DB_REF.child('sc_custom_products').set(JSON.stringify(l));
+  if(window.DB_REF) {
+    window.DB_REF.child('sc_custom_products').set(JSON.stringify(l)).then(function() {
+      if(successCb) successCb();
+    }).catch(function(err) {
+      console.error('Failed to save products to Firebase:', err);
+      showToast('⚠️ Failed to save to database! Data may be too large.');
+      if(errorCb) errorCb(err);
+    });
+  } else {
+    if(successCb) successCb();
+  }
 }
 function getDeletedProducts() { return window.FB_DELETED_PRODUCTS; }
 function saveDeletedProducts(l) {
   window.FB_DELETED_PRODUCTS = l;
-  if(window.DB_REF) window.DB_REF.child('sc_deleted_products').set(JSON.stringify(l));
+  if(window.DB_REF) {
+    window.DB_REF.child('sc_deleted_products').set(JSON.stringify(l)).catch(function(err) {
+      console.error('Failed to save deleted products to Firebase:', err);
+      showToast('⚠️ Failed to save to database!');
+    });
+  }
 }
 function isCustomProduct(id){return getCustomProducts().some(function(p){return p.id===id})}
 
@@ -789,7 +809,7 @@ function resizeImage(dataUrl,maxW,cb){
     if(w>maxW){h=Math.round(h*maxW/w);w=maxW}
     var c=document.createElement('canvas');c.width=w;c.height=h;
     c.getContext('2d').drawImage(img,0,0,w,h);
-    cb(c.toDataURL('image/jpeg',0.75));
+    cb(c.toDataURL('image/jpeg',0.55));
   };img.src=dataUrl;
 }
 function handleImageUrl(){if(document.getElementById('pmImageUrl').value.trim()){currentImagesData=[];removeImage()}}
@@ -926,7 +946,6 @@ function saveProduct(){
     if(stockVal!==''){setProductStock(editId,parseInt(stockVal))}
     PRODUCTS=PRODUCTS.map(function(p){return p.id===editId?prodData:p});
     if(!PRODUCTS.some(function(p){return p.id===editId}))PRODUCTS.push(prodData);
-    showToast('✿ "'+name+'" updated');
   } else {
     var maxId=100;
     PRODUCTS.forEach(function(p){if(p.id>=maxId)maxId=p.id+1});
@@ -935,11 +954,14 @@ function saveProduct(){
     var newProd={id:maxId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr,pricingOptions:pricingOptions};
     customProducts.push(newProd);PRODUCTS.push(newProd);
     if(stockVal!=='')setProductStock(maxId,parseInt(stockVal));
-    showToast('✿ "'+name+'" added!');
   }
-  saveCustomProducts(customProducts);
-  closeModal('productModalOverlay','productModal');
-  renderProducts();
+  saveCustomProducts(customProducts, function() {
+    showToast('✿ "'+name+'" ' + (editId ? 'updated' : 'added') + ' & saved to database!');
+    closeModal('productModalOverlay','productModal');
+    renderProducts();
+  }, function() {
+    renderProducts();
+  });
 }
 
 // Delete product
