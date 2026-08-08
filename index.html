@@ -1385,6 +1385,8 @@ window.DB_REF = db.ref('/');
 
 db.ref('/').once('value').then(function(snapshot) {
   var data = snapshot.val() || {};
+  console.log('Firebase raw data keys:', Object.keys(data));
+  
   window.FB_CATEGORIES = data.sc_categories ? JSON.parse(data.sc_categories) : [
     {id: 'resin', name: 'Resin'},
     {id: 'candles', name: 'Candles'},
@@ -1398,12 +1400,21 @@ db.ref('/').once('value').then(function(snapshot) {
   window.FB_STOCK = data.sc_stock ? JSON.parse(data.sc_stock) : {};
   window.FB_PROMO_CODES = data.sc_promo_codes ? JSON.parse(data.sc_promo_codes) : [];
   
+  console.log('Custom products from DB:', customProds.length, customProds.map(function(p){return p.id+':'+p.name}));
+  console.log('Deleted product IDs:', deletedProds);
+  console.log('Base PRODUCTS before merge:', PRODUCTS.length);
+  
   if (deletedProds.length > 0) {
     PRODUCTS = PRODUCTS.filter(function(p) { return !deletedProds.includes(p.id); });
   }
   if (customProds.length > 0) {
+    // Remove any existing products that have same ID as custom ones to prevent duplicates
+    var customIds = customProds.map(function(p){return p.id});
+    PRODUCTS = PRODUCTS.filter(function(p){return !customIds.includes(p.id)});
     PRODUCTS = PRODUCTS.concat(customProds);
   }
+  
+  console.log('Final PRODUCTS after merge:', PRODUCTS.length, PRODUCTS.map(function(p){return p.id+':'+p.name}));
   
   renderProducts();
   updateCartUI();
