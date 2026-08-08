@@ -81,6 +81,7 @@
     .mq-i{font-family:'Cormorant Garamond',serif;font-size:.95rem;font-style:italic;color:var(--blush-lt);padding:0 44px;letter-spacing:.06em}
     .mq-d{color:var(--terra);padding:0 6px}
     @keyframes mq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+    @keyframes pulse{0%,100%{opacity:.4;transform:scale(1)}50%{opacity:1;transform:scale(1.2)}}
 
     /* ── SHOP ── */
     #shop{padding:120px 80px;background:var(--ivory)}
@@ -414,14 +415,15 @@
       <h2 class="section-title">Crafted for <em>your</em><br/>moments</h2>
     </div>
     <div class="filters">
-      <button class="f-btn active" data-filter="all">All Goodies</button>
-      <button class="f-btn" data-filter="resin">Resin</button>
-      <button class="f-btn" data-filter="candles">Candles</button>
-      <button class="f-btn" data-filter="gypsum">Gypsum</button>
-      <button class="f-btn" data-filter="her-favorites">Her favorites</button>
+      <!-- populated dynamically after Firebase loads -->
     </div>
   </div>
-  <div class="products-grid" id="productsGrid"></div>
+  <div class="products-grid" id="productsGrid">
+    <div style="grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--char-lt);font-family:'Jost',sans-serif;font-size:.85rem;letter-spacing:.1em;">
+      <div style="font-size:2rem;margin-bottom:12px;animation:pulse 1.5s ease-in-out infinite;">✿</div>
+      Loading products...
+    </div>
+  </div>
 </section>
 
 <!-- FEATURES -->
@@ -1297,14 +1299,7 @@ function renderProducts(filter) {
   grid.querySelectorAll('.reveal').forEach(function(el) { revealObserver.observe(el); });
 }
 
-// Filter buttons
-document.querySelectorAll('.f-btn').forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('.f-btn').forEach(function(b) { b.classList.remove('active'); });
-    btn.classList.add('active');
-    renderProducts(btn.dataset.filter);
-  });
-});
+// Filter buttons - bound dynamically in renderDynamicCategories()
 
 // ═══════════════════════════════════════════════════════════
 //  SIDE PANEL
