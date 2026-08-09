@@ -1377,15 +1377,6 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 window.DB_REF = db.ref('/');
 
-  window.FB_CATEGORIES = [
-    {id: 'resin', name: 'Resin'},
-    {id: 'candles', name: 'Candles'},
-    {id: 'gypsum', name: 'Gypsum'},
-    {id: 'her-favorites', name: 'Her favorites'}
-  ];
-  renderDynamicCategories();
-  renderProducts();
-
 Promise.all([
   db.ref('sc_categories').once('value'),
   db.ref('sc_custom_products').once('value'),
