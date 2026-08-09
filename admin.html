@@ -1360,19 +1360,27 @@ Promise.all([
     sc_stock: snapshots[4].val(),
     sc_promo_codes: snapshots[5].val()
   };
-  window.FB_CATEGORIES = data.sc_categories ? JSON.parse(data.sc_categories) : [
+  function safeParse(val, fallback) {
+    if (!val) return fallback;
+    if (typeof val === 'string') {
+      try { return JSON.parse(val); } catch(e) { return fallback; }
+    }
+    return val;
+  }
+
+  window.FB_CATEGORIES = safeParse(data.sc_categories, [
     {id: 'resin', name: 'Resin'},
     {id: 'candles', name: 'Candles'},
     {id: 'gypsum', name: 'Gypsum'},
     {id: 'her-favorites', name: 'Her favorites'}
-  ];
+  ]);
   renderCategoryDropdown();
 
-  window.FB_CUSTOM_PRODUCTS = data.sc_custom_products ? JSON.parse(data.sc_custom_products) : [];
-  window.FB_DELETED_PRODUCTS = data.sc_deleted_products ? JSON.parse(data.sc_deleted_products) : [];
-  window.FB_ORDERS = data.sc_orders ? JSON.parse(data.sc_orders) : [];
-  window.FB_STOCK = data.sc_stock ? JSON.parse(data.sc_stock) : {};
-  window.FB_PROMO_CODES = data.sc_promo_codes ? JSON.parse(data.sc_promo_codes) : [];
+  window.FB_CUSTOM_PRODUCTS = safeParse(data.sc_custom_products, []);
+  window.FB_DELETED_PRODUCTS = safeParse(data.sc_deleted_products, []);
+  window.FB_ORDERS = safeParse(data.sc_orders, []);
+  window.FB_STOCK = safeParse(data.sc_stock, {});
+  window.FB_PROMO_CODES = safeParse(data.sc_promo_codes, []);
   
   console.log('Admin: Custom products loaded:', window.FB_CUSTOM_PRODUCTS.length);
   console.log('Admin: Deleted product IDs:', window.FB_DELETED_PRODUCTS);
