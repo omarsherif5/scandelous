@@ -1380,21 +1380,8 @@ const db = firebase.database();
 window.DB_REF = db.ref('/');
 
 const dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
-Promise.all([
-  fetch(dbUrl + '/sc_categories.json').then(function(r){return r.json();}),
-  fetch(dbUrl + '/sc_custom_products.json').then(function(r){return r.json();}),
-  fetch(dbUrl + '/sc_deleted_products.json').then(function(r){return r.json();}),
-  fetch(dbUrl + '/sc_stock.json').then(function(r){return r.json();}),
-  fetch(dbUrl + '/sc_promo_codes.json').then(function(r){return r.json();})
-]).then(function(results) {
-  var data = {
-    sc_categories: results[0],
-    sc_custom_products: results[1],
-    sc_deleted_products: results[2],
-    sc_stock: results[3],
-    sc_promo_codes: results[4]
-  };
-  
+  var BASE_PRODUCTS = [].concat(PRODUCTS);
+
   function safeParse(val, fallback) {
     if (!val) return fallback;
     if (typeof val === 'string') {
@@ -1402,40 +1389,80 @@ Promise.all([
     }
     return val;
   }
-  
-  window.FB_CATEGORIES = safeParse(data.sc_categories, [
-    {id: 'resin', name: 'Resin'},
-    {id: 'candles', name: 'Candles'},
-    {id: 'gypsum', name: 'Gypsum'},
-    {id: 'her-favorites', name: 'Her favorites'}
-  ]);
-  renderDynamicCategories();
-  
-  var customProds = safeParse(data.sc_custom_products, []);
-  var deletedProds = safeParse(data.sc_deleted_products, []);
-  window.FB_STOCK = safeParse(data.sc_stock, {});
-  window.FB_PROMO_CODES = safeParse(data.sc_promo_codes, []);
-  
-  console.log('Custom products from DB:', customProds.length, customProds.map(function(p){return p.id+':'+p.name}));
-  console.log('Deleted product IDs:', deletedProds);
-  console.log('Base PRODUCTS before merge:', PRODUCTS.length);
-  
-  if (deletedProds.length > 0) {
-    PRODUCTS = PRODUCTS.filter(function(p) { return !deletedProds.includes(p.id); });
+
+  function applyData(data) {
+    try {
+      window.FB_CATEGORIES = safeParse(data.sc_categories, [
+        {id: 'resin', name: 'Resin'},
+        {id: 'candles', name: 'Candles'},
+        {id: 'gypsum', name: 'Gypsum'},
+        {id: 'her-favorites', name: 'Her favorites'}
+      ]);
+      renderDynamicCategories();
+      
+      var customProds = safeParse(data.sc_custom_products, []);
+      var deletedProds = safeParse(data.sc_deleted_products, []);
+      window.FB_STOCK = safeParse(data.sc_stock, {});
+      window.FB_PROMO_CODES = safeParse(data.sc_promo_codes, []);
+      
+      PRODUCTS = [].concat(BASE_PRODUCTS);
+      
+      if (deletedProds && deletedProds.length > 0) {
+        PRODUCTS = PRODUCTS.filter(function(p) { return !deletedProds.includes(p.id); });
+      }
+      if (customProds && customProds.length > 0) {
+        var customIds = customProds.map(function(p){return p.id});
+        PRODUCTS = PRODUCTS.filter(function(p){return !customIds.includes(p.id)});
+        PRODUCTS = PRODUCTS.concat(customProds);
+      }
+      
+      renderProducts();
+      updateCartUI();
+    } catch(err) {
+      console.error("Error applying data:", err);
+      // Fallback
+      renderProducts();
+    }
   }
-  if (customProds.length > 0) {
-    // Remove any existing products that have same ID as custom ones to prevent duplicates
-    var customIds = customProds.map(function(p){return p.id});
-    PRODUCTS = PRODUCTS.filter(function(p){return !customIds.includes(p.id)});
-    PRODUCTS = PRODUCTS.concat(customProds);
+
+  var cached = null;
+  try { cached = localStorage.getItem('sc_cache'); } catch(e) {}
+  
+  var usedCache = false;
+  if (cached) {
+    try {
+      var cachedData = JSON.parse(cached);
+      setTimeout(function() {
+        applyData(cachedData);
+      }, 150); // Give the user a tiny 150ms glimpse of the loading screen so they know it loaded
+      usedCache = true;
+    } catch(e) {}
   }
-  
-  console.log('Final PRODUCTS after merge:', PRODUCTS.length, PRODUCTS.map(function(p){return p.id+':'+p.name}));
-  
-  renderProducts();
-  updateCartUI();
-}).catch(function(err) {
-  console.error("Firebase error", err);
+
+  Promise.all([
+    fetch(dbUrl + '/sc_categories.json').then(function(r){return r.json();}),
+    fetch(dbUrl + '/sc_custom_products.json').then(function(r){return r.json();}),
+    fetch(dbUrl + '/sc_deleted_products.json').then(function(r){return r.json();}),
+    fetch(dbUrl + '/sc_stock.json').then(function(r){return r.json();}),
+    fetch(dbUrl + '/sc_promo_codes.json').then(function(r){return r.json();})
+  ]).then(function(results) {
+    var data = {
+      sc_categories: results[0],
+      sc_custom_products: results[1],
+      sc_deleted_products: results[2],
+      sc_stock: results[3],
+      sc_promo_codes: results[4]
+    };
+    try { localStorage.setItem('sc_cache', JSON.stringify(data)); } catch(e) {}
+    
+    // Always apply live data to ensure freshness, but if we used cache, it updates silently in the background
+    applyData(data);
+  }).catch(function(err) {
+    console.error("Firebase fetch error", err);
+    if (!usedCache) {
+      applyData({}); // Force render base products if network fails
+    }
+  });
 });
 
 function renderDynamicCategories() {
