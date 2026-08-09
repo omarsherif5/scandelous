@@ -1462,7 +1462,7 @@ function renderDynamicCategories() {
 
   var footerProducts = document.getElementById('footerProductsList');
   if (footerProducts) {
-    footerProducts.innerHTML = window.FB_CATEGORIES.map(function(c) {
+    footerProducts.innerHTML = window.FB_CATEGORIES.slice(0, 4).map(function(c) {
       return '<li><a href="#shop" onclick="filterFromMenu(\'' + c.id + '\')">' + c.name + '</a></li>';
     }).join('');
   }
