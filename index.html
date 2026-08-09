@@ -1443,23 +1443,23 @@ const dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
   } catch(e) {}
 
   Promise.all([
-    fetch(dbUrl + '/sc_categories.json').then(function(r){return r.json();}),
-    fetch(dbUrl + '/sc_custom_products.json').then(function(r){return r.json();}),
-    fetch(dbUrl + '/sc_deleted_products.json').then(function(r){return r.json();}),
-    fetch(dbUrl + '/sc_stock.json').then(function(r){return r.json();}),
-    fetch(dbUrl + '/sc_promo_codes.json').then(function(r){return r.json();})
-  ]).then(function(results) {
+    db.ref('sc_categories').once('value'),
+    db.ref('sc_custom_products').once('value'),
+    db.ref('sc_deleted_products').once('value'),
+    db.ref('sc_stock').once('value'),
+    db.ref('sc_promo_codes').once('value')
+  ]).then(function(snapshots) {
     var data = {
-      sc_categories: results[0],
-      sc_custom_products: results[1],
-      sc_deleted_products: results[2],
-      sc_stock: results[3],
-      sc_promo_codes: results[4]
+      sc_categories: snapshots[0].val(),
+      sc_custom_products: snapshots[1].val(),
+      sc_deleted_products: snapshots[2].val(),
+      sc_stock: snapshots[3].val(),
+      sc_promo_codes: snapshots[4].val()
     };
     try { localStorage.setItem('layla_fast_cache', JSON.stringify(data)); } catch(e) {}
     applyData(data);
   }).catch(function(err) {
-    console.error("Firebase error", err);
+    console.error("Firebase SDK error", err);
     if (!usedCache) {
       if (!window.BASE_PRODS) window.BASE_PRODS = JSON.parse(JSON.stringify(PRODUCTS));
       PRODUCTS = JSON.parse(JSON.stringify(window.BASE_PRODS));
