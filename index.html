@@ -1377,21 +1377,8 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 window.DB_REF = db.ref('/');
 
-Promise.all([
-  db.ref('sc_categories').once('value'),
-  db.ref('sc_custom_products').once('value'),
-  db.ref('sc_deleted_products').once('value'),
-  db.ref('sc_stock').once('value'),
-  db.ref('sc_promo_codes').once('value')
-]).then(function(snapshots) {
-  var data = {
-    sc_categories: snapshots[0].val(),
-    sc_custom_products: snapshots[1].val(),
-    sc_deleted_products: snapshots[2].val(),
-    sc_stock: snapshots[3].val(),
-    sc_promo_codes: snapshots[4].val()
-  };
-  
+  var BASE_PRODUCTS = [].concat(PRODUCTS);
+
   function safeParse(val, fallback) {
     if (!val) return fallback;
     if (typeof val === 'string') {
@@ -1399,40 +1386,60 @@ Promise.all([
     }
     return val;
   }
-  
-  window.FB_CATEGORIES = safeParse(data.sc_categories, [
-    {id: 'resin', name: 'Resin'},
-    {id: 'candles', name: 'Candles'},
-    {id: 'gypsum', name: 'Gypsum'},
-    {id: 'her-favorites', name: 'Her favorites'}
-  ]);
-  renderDynamicCategories();
-  
-  var customProds = safeParse(data.sc_custom_products, []);
-  var deletedProds = safeParse(data.sc_deleted_products, []);
-  window.FB_STOCK = safeParse(data.sc_stock, {});
-  window.FB_PROMO_CODES = safeParse(data.sc_promo_codes, []);
-  
-  console.log('Custom products from DB:', customProds.length, customProds.map(function(p){return p.id+':'+p.name}));
-  console.log('Deleted product IDs:', deletedProds);
-  console.log('Base PRODUCTS before merge:', PRODUCTS.length);
-  
-  if (deletedProds.length > 0) {
-    PRODUCTS = PRODUCTS.filter(function(p) { return !deletedProds.includes(p.id); });
+
+  function applyData(data) {
+    window.FB_CATEGORIES = safeParse(data.sc_categories, [
+      {id: 'resin', name: 'Resin'},
+      {id: 'candles', name: 'Candles'},
+      {id: 'gypsum', name: 'Gypsum'},
+      {id: 'her-favorites', name: 'Her favorites'}
+    ]);
+    renderDynamicCategories();
+    
+    var customProds = safeParse(data.sc_custom_products, []);
+    var deletedProds = safeParse(data.sc_deleted_products, []);
+    window.FB_STOCK = safeParse(data.sc_stock, {});
+    window.FB_PROMO_CODES = safeParse(data.sc_promo_codes, []);
+    
+    PRODUCTS = [].concat(BASE_PRODUCTS);
+    
+    if (deletedProds.length > 0) {
+      PRODUCTS = PRODUCTS.filter(function(p) { return !deletedProds.includes(p.id); });
+    }
+    if (customProds.length > 0) {
+      var customIds = customProds.map(function(p){return p.id});
+      PRODUCTS = PRODUCTS.filter(function(p){return !customIds.includes(p.id)});
+      PRODUCTS = PRODUCTS.concat(customProds);
+    }
+    
+    renderProducts();
+    updateCartUI();
   }
-  if (customProds.length > 0) {
-    // Remove any existing products that have same ID as custom ones to prevent duplicates
-    var customIds = customProds.map(function(p){return p.id});
-    PRODUCTS = PRODUCTS.filter(function(p){return !customIds.includes(p.id)});
-    PRODUCTS = PRODUCTS.concat(customProds);
-  }
-  
-  console.log('Final PRODUCTS after merge:', PRODUCTS.length, PRODUCTS.map(function(p){return p.id+':'+p.name}));
-  
-  renderProducts();
-  updateCartUI();
-}).catch(function(err) {
-  console.error("Firebase error", err);
+
+  try {
+    var cached = localStorage.getItem('sc_cache');
+    if (cached) applyData(JSON.parse(cached));
+  } catch(e) {}
+
+  Promise.all([
+    db.ref('sc_categories').once('value'),
+    db.ref('sc_custom_products').once('value'),
+    db.ref('sc_deleted_products').once('value'),
+    db.ref('sc_stock').once('value'),
+    db.ref('sc_promo_codes').once('value')
+  ]).then(function(snapshots) {
+    var data = {
+      sc_categories: snapshots[0].val(),
+      sc_custom_products: snapshots[1].val(),
+      sc_deleted_products: snapshots[2].val(),
+      sc_stock: snapshots[3].val(),
+      sc_promo_codes: snapshots[4].val()
+    };
+    try { localStorage.setItem('sc_cache', JSON.stringify(data)); } catch(e) {}
+    applyData(data);
+  }).catch(function(err) {
+    console.error("Firebase error", err);
+  });
 });
 
 function renderDynamicCategories() {
