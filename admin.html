@@ -339,6 +339,9 @@
     <div class="prod-panel-header">
       <div class="prod-panel-info">Manage your product catalog. Add new products, edit existing ones, or remove them.</div>
       <div style="display:flex;gap:10px;">
+        <button class="action-btn" onclick="exportBackup()" style="background:var(--sand);color:var(--text)">
+          💾 Backup
+        </button>
         <button class="action-btn" onclick="openManageCategories()" style="background:var(--sand);color:var(--text)">
           Manage Categories
         </button>
@@ -659,6 +662,24 @@ function adminWhatsApp(orderNum, type){
 // ═══════════════════════════════════════════════════════════
 window.FB_CUSTOM_PRODUCTS = [];
 window.FB_DELETED_PRODUCTS = [];
+
+function exportBackup() {
+  var backupData = {
+    categories: window.FB_CATEGORIES,
+    custom_products: window.FB_CUSTOM_PRODUCTS,
+    deleted_products: window.FB_DELETED_PRODUCTS,
+    stock: window.FB_STOCK,
+    promo_codes: window.FB_PROMO_CODES,
+    orders: window.FB_ORDERS
+  };
+  var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+  var a = document.createElement('a');
+  a.setAttribute("href", dataStr);
+  a.setAttribute("download", "scandelous_backup_" + new Date().toISOString().slice(0,10) + ".json");
+  a.click();
+  showToast('✿ Backup downloaded');
+}
+
 function getCustomProducts() { return window.FB_CUSTOM_PRODUCTS; }
 function saveCustomProducts(l, successCb, errorCb) {
   window.FB_CUSTOM_PRODUCTS = l;
