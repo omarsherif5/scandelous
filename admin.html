@@ -342,6 +342,10 @@
         <button class="action-btn" onclick="exportBackup()" style="background:var(--sand);color:var(--text)">
           💾 Backup
         </button>
+        <button class="action-btn" onclick="document.getElementById('restoreUpload').click()" style="background:var(--sand);color:var(--text)">
+          📂 Restore
+        </button>
+        <input type="file" id="restoreUpload" style="display:none" accept=".json" onchange="handleRestoreBackup(event)" />
         <button class="action-btn" onclick="openManageCategories()" style="background:var(--sand);color:var(--text)">
           Manage Categories
         </button>
@@ -678,6 +682,38 @@ function exportBackup() {
   a.setAttribute("download", "scandelous_backup_" + new Date().toISOString().slice(0,10) + ".json");
   a.click();
   showToast('✿ Backup downloaded');
+}
+
+function handleRestoreBackup(event) {
+  var file = event.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var data = JSON.parse(e.target.result);
+      if (confirm('WARNING: This will overwrite your current database with the backup data. Are you sure you want to restore?')) {
+        Promise.all([
+          db.ref('/sc_categories').set(JSON.stringify(data.categories || [])),
+          db.ref('/sc_custom_products').set(JSON.stringify(data.custom_products || [])),
+          db.ref('/sc_deleted_products').set(JSON.stringify(data.deleted_products || [])),
+          db.ref('/sc_stock').set(JSON.stringify(data.stock || {})),
+          db.ref('/sc_promo_codes').set(JSON.stringify(data.promo_codes || [])),
+          db.ref('/sc_orders').set(JSON.stringify(data.orders || []))
+        ]).then(function() {
+          showToast('✿ Backup restored successfully!');
+          setTimeout(function(){ location.reload(); }, 1500);
+        }).catch(function(err) {
+          showToast('⚠️ Error restoring backup');
+          console.error(err);
+        });
+      }
+    } catch(err) {
+      showToast('⚠️ Invalid backup file');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = ''; // Reset input
 }
 
 function getCustomProducts() { return window.FB_CUSTOM_PRODUCTS; }
