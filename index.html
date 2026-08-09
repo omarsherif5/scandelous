@@ -678,12 +678,11 @@ function updateCartUI() {
           '<button class="qty-btn" onclick="updateQty(' + item.id + ',\'' + (item.color||'') + '\',\'' + (item.pricingOption||'') + '\',1)">+</button>' +
         '</div>' +
         '<div class="ci-row2">' +
-          '<span class="ci-price">' + fmt(price * item.qty) + '</span>' +
+          '<span class="ci-price">' + fmt(item.price * item.qty) + '</span>' +
           '<button class="ci-remove" onclick="updateQty(' + item.id + ',\'' + (item.color||'') + '\',\'' + (item.pricingOption||'') + '\',-999)">Remove</button>' +
         '</div>' +
       '</div></div>';
-  });
-  iEl.innerHTML = html;
+  }).join('');
 
   var t = cartTotals();
   document.getElementById('cartSubtotal').textContent = fmt(t.sub);
