@@ -1220,7 +1220,7 @@ window.selectColor = function(btn, color, imgIdx) {
   currentSelectedColor = color;
   if (imgIdx !== null && imgIdx !== undefined) {
     var imgSide = document.getElementById('detailImg');
-    var targetImg = imgSide.children[imgIdx + 1];
+    var targetImg = imgSide.children[imgIdx];
     if (targetImg) {
       targetImg.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
     }
