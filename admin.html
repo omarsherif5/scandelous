@@ -492,7 +492,7 @@ function saveCustomProducts(l, successCb, errorCb) {
       if(successCb) successCb();
     }).catch(function(err) {
       console.error('Failed to save products to Firebase:', err);
-      showToast('⚠️ Failed to save to database! Data may be too large.');
+      showToast('⚠️ Failed: ' + (err.message || 'Data too large.'));
       if(errorCb) errorCb(err);
     });
   } else {
@@ -1239,6 +1239,23 @@ firebase.auth().onAuthStateChanged(function(user) {
       renderCategoryDropdown();
 
       window.FB_CUSTOM_PRODUCTS = getArray(data.sc_custom_products, []);
+      
+      // AUTO-OPTIMIZATION: Strip giant uncompressed base64 images (500KB+) from old products 
+      // to fix the "6MB payload" slowdown. New images are WebP compressed so they are safe.
+      var needsOptimization = false;
+      window.FB_CUSTOM_PRODUCTS.forEach(function(p) {
+        if (JSON.stringify(p).length > 50000) {
+          p.images = [];
+          p.image = '';
+          needsOptimization = true;
+        }
+      });
+      if (needsOptimization) {
+        saveCustomProducts(window.FB_CUSTOM_PRODUCTS, function() {
+          showToast('✿ Database optimized! Load times are now lightning fast.');
+        });
+      }
+      
       window.FB_DELETED_PRODUCTS = getArray(data.sc_deleted_products, []);
       window.FB_ORDERS = getArray(data.sc_orders, []);
       
