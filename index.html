@@ -556,7 +556,7 @@ function placeOrder() {
   try {
     if (window.DB_REF) {
       var orderData = JSON.parse(JSON.stringify(order));
-      window.DB_REF.child('sc_orders').push(orderData).then(function() {
+      window.DB_REF.child('sc_orders/' + orderData.orderNum).set(orderData).then(function() {
         console.log('✅ Order saved to Firebase');
       }).catch(function(e) {
         console.error('Firebase save error:', e);

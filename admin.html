@@ -311,10 +311,17 @@ function updateOrderStatus(orderNum,newStatus){
       }
       
       o.status=newStatus;
+      
+      // Surgically update the status in Firebase
+      if (window.DB_REF) {
+        window.DB_REF.child('sc_orders/' + orderNum).update({ status: newStatus }).catch(function(err){
+          console.error(err);
+        });
+      }
     }
     return o;
   });
-  saveOrders(orders);
+  window.FB_ORDERS = orders;
   if (changedStock) {
     if (typeof renderProducts === 'function') renderProducts();
   }
@@ -1281,7 +1288,7 @@ firebase.auth().onAuthStateChanged(function(user) {
       db.ref('sc_categories').once('value').catch(function(e){console.warn('Cats failed'); return {val:function(){return null}};}),
       db.ref('sc_custom_products_v2').once('value').catch(function(e){console.warn('Prods failed'); return {val:function(){return null}};}),
       db.ref('sc_deleted_products').once('value').catch(function(e){return {val:function(){return null}};}),
-      db.ref('sc_orders').once('value').catch(function(e){console.warn('Orders failed (Rules?)'); return {val:function(){return null}};}),
+      db.ref('sc_orders').orderByKey().limitToLast(150).once('value').catch(function(e){console.warn('Orders failed'); return {val:function(){return null}};}),
       db.ref('sc_stock').once('value').catch(function(e){return {val:function(){return null}};}),
       db.ref('sc_promo_codes').once('value').catch(function(e){return {val:function(){return null}};})
     ]).then(function(snapshots) {
