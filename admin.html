@@ -460,20 +460,51 @@ function handleRestoreBackup(event) {
     try {
       var data = JSON.parse(e.target.result);
       if (confirm('WARNING: This will overwrite your current database with the backup data. Are you sure you want to restore?')) {
-        Promise.all([
-          db.ref('/sc_categories').set(JSON.stringify(data.categories || [])),
-          db.ref('/sc_custom_products').set(JSON.stringify(data.custom_products || [])),
-          db.ref('/sc_deleted_products').set(JSON.stringify(data.deleted_products || [])),
-          db.ref('/sc_stock').set(JSON.stringify(data.stock || {})),
-          db.ref('/sc_promo_codes').set(JSON.stringify(data.promo_codes || [])),
-          db.ref('/sc_orders').set(JSON.stringify(data.orders || []))
-        ]).then(function() {
-          showToast('✿ Backup restored successfully!');
-          setTimeout(function(){ location.reload(); }, 1500);
-        }).catch(function(err) {
-          showToast('⚠️ Error restoring backup');
-          console.error(err);
-        });
+        var tasks = [];
+        if (data.custom_products) {
+          data.custom_products.forEach(function(p) {
+            if (p && p.images && p.images.length > 0) {
+              p.images.forEach(function(img, idx) {
+                if (img.startsWith('data:') && img.length > 50000) {
+                  tasks.push({ p: p, idx: idx, img: img });
+                }
+              });
+            }
+          });
+        }
+
+        showToast('✿ Restoring & compressing images... Please wait.');
+        var completed = 0;
+
+        function finalizeRestore() {
+          Promise.all([
+            db.ref('/sc_categories').set(JSON.stringify(data.categories || [])),
+            db.ref('/sc_custom_products').set(JSON.stringify(data.custom_products || [])),
+            db.ref('/sc_deleted_products').set(JSON.stringify(data.deleted_products || [])),
+            db.ref('/sc_stock').set(JSON.stringify(data.stock || {})),
+            db.ref('/sc_promo_codes').set(JSON.stringify(data.promo_codes || [])),
+            db.ref('/sc_orders').set(JSON.stringify(data.orders || []))
+          ]).then(function() {
+            showToast('✿ Backup restored successfully!');
+            setTimeout(function(){ location.reload(); }, 1500);
+          }).catch(function(err) {
+            showToast('⚠️ Error restoring backup');
+            console.error(err);
+          });
+        }
+
+        if (tasks.length === 0) {
+          finalizeRestore();
+        } else {
+          tasks.forEach(function(task) {
+            resizeImage(task.img, 600, function(resized) {
+              task.p.images[task.idx] = resized;
+              if (task.idx === 0) task.p.image = resized;
+              completed++;
+              if (completed === tasks.length) finalizeRestore();
+            });
+          });
+        }
       }
     } catch(err) {
       showToast('⚠️ Invalid backup file');
