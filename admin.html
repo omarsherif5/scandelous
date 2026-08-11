@@ -1187,12 +1187,12 @@ const db = firebase.database();
 window.DB_REF = db.ref('/');
 
 Promise.all([
-  db.ref('sc_categories').once('value'),
-  db.ref('sc_custom_products').once('value'),
-  db.ref('sc_deleted_products').once('value'),
-  db.ref('sc_orders').once('value'),
-  db.ref('sc_stock').once('value'),
-  db.ref('sc_promo_codes').once('value')
+  db.ref('sc_categories').once('value').catch(function(e){console.warn('Cats failed'); return {val:function(){return null}};}),
+  db.ref('sc_custom_products').once('value').catch(function(e){console.warn('Prods failed'); return {val:function(){return null}};}),
+  db.ref('sc_deleted_products').once('value').catch(function(e){return {val:function(){return null}};}),
+  db.ref('sc_orders').once('value').catch(function(e){console.warn('Orders failed (Rules?)'); return {val:function(){return null}};}),
+  db.ref('sc_stock').once('value').catch(function(e){return {val:function(){return null}};}),
+  db.ref('sc_promo_codes').once('value').catch(function(e){return {val:function(){return null}};})
 ]).then(function(snapshots) {
   var data = {
     sc_categories: snapshots[0].val(),
