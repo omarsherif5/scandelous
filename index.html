@@ -156,7 +156,7 @@
     .c-detail{margin-top:30px}
     .c-label{font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--blush);margin-bottom:5px}
     .c-val{font-family:'Cormorant Garamond',serif;font-size:1.08rem;color:var(--charcoal)}
-    .contact-form{display:flex;flex-direction:column;gap:16px}
+
     .form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
     .fg{display:flex;flex-direction:column;gap:6px}
     .fg label{font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--char-lt)}
@@ -402,12 +402,6 @@
   </div>
 </section>
 
-<!-- MARQUEE -->
-<div class="marquee">
-  <div class="marquee-track" id="mqTrack">
-    <!-- populated by JS -->
-  </div>
-</div>
 
 <!-- SHOP -->
 <section id="shop">
@@ -490,8 +484,8 @@
       <h4>Stay in the warmth</h4>
       <p>First access to new collections and exclusive offers.</p>
       <div class="nl-form">
-        <input class="nl-input" type="email" placeholder="Your email address"/>
-        <button class="nl-btn">→</button>
+        <input class="nl-input" type="email" id="nlEmail" placeholder="Your email address"/>
+        <button class="nl-btn" type="button" onclick="subscribeNewsletter()">→</button>
       </div>
     </div>
   </div>
@@ -1355,10 +1349,14 @@ var revealObserver = new IntersectionObserver(function(entries) {
 
 document.querySelectorAll('.reveal').forEach(function(el) { revealObserver.observe(el); });
 
-function handleContact(e) {
-  e.preventDefault();
-  showToast(" Message sent! We'll be in touch soon.");
-  e.target.reset();
+function subscribeNewsletter() {
+  var email = document.getElementById('nlEmail').value;
+  if (!email || !email.includes('@')) {
+    showToast("⚠️ Please enter a valid email address.");
+    return;
+  }
+  showToast("✿ Thank you for subscribing! We'll be in touch.");
+  document.getElementById('nlEmail').value = '';
 }
 
 // ✿✿ INIT ✿✿
