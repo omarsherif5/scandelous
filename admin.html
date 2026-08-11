@@ -593,7 +593,7 @@ function resizeImage(dataUrl,maxW,cb){
     if(w>maxW){h=Math.round(h*maxW/w);w=maxW}
     var c=document.createElement('canvas');c.width=w;c.height=h;
     c.getContext('2d').drawImage(img,0,0,w,h);
-    cb(c.toDataURL('image/jpeg',0.55));
+    cb(c.toDataURL('image/webp',0.5));
   };img.src=dataUrl;
 }
 function handleImageUrl(){if(document.getElementById('pmImageUrl').value.trim()){currentImagesData=[];removeImage()}}
