@@ -762,13 +762,13 @@ function updateQty(id, color, pricingOption, d) {
   }
   
   item.qty += d;
-  if (item.qty <= 0) cart = cart.filter(function(x) { return !(x.id === id && (x.color||'') === color); });
+  if (item.qty <= 0) cart = cart.filter(function(x) { return !(x.id === id && (x.color||'') === color && (x.pricingOption||'') === pricingOption); });
   saveCart();
   updateCartUI();
 }
 
-function removeItem(id, color) {
-  cart = cart.filter(function(x) { return !(x.id === id && (x.color||'') === color); });
+function removeItem(id, color, pricingOption) {
+  cart = cart.filter(function(x) { return !(x.id === id && (x.color||'') === color && (x.pricingOption||'') === (pricingOption||'')); });
   saveCart();
   updateCartUI();
 }
