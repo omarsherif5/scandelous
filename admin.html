@@ -964,8 +964,8 @@ function saveProduct(){
     images = images.concat(urls);
   }
 
-  var saveBtn = document.querySelector('.pm-actions .action-btn[style*="background:var(--amber)"]');
-  var origSaveText = saveBtn ? saveBtn.textContent : 'Save Product';
+  var saveBtn = document.querySelector('.pm-save-btn');
+  var origSaveText = saveBtn ? saveBtn.textContent : '✿ Save Product';
 
   function finalizeSave(finalImages) {
     if (saveBtn) {
@@ -1034,39 +1034,43 @@ function saveProduct(){
   var uploads = [];
   var newImages = [];
   
-  images.forEach(function(img, idx) {
-    if (img.startsWith('data:image/')) {
-      var ref = storage.ref('products/img_' + Date.now() + '_' + idx + '.jpg');
-      uploads.push(
-        ref.putString(img, 'data_url').then(function(snapshot) {
-          return snapshot.ref.getDownloadURL();
-        }).then(function(url) {
-          return { index: idx, url: url };
-        })
-      );
-      newImages.push(null); // Placeholder
-    } else {
-      newImages.push(img);
-    }
-  });
+  try {
+    images.forEach(function(img, idx) {
+      if (img && typeof img === 'string' && img.startsWith('data:image/')) {
+        var ref = storage.ref('products/img_' + Date.now() + '_' + idx + '.jpg');
+        uploads.push(
+          ref.putString(img, 'data_url').then(function(snapshot) {
+            return snapshot.ref.getDownloadURL();
+          }).then(function(url) {
+            return { index: idx, url: url };
+          })
+        );
+        newImages.push(null);
+      } else {
+        newImages.push(img);
+      }
+    });
+  } catch(e) {
+    console.error("Storage setup error:", e);
+    // If setting up the upload fails entirely, fallback to saving as base64
+    uploads = [];
+    newImages = images;
+  }
 
   if (uploads.length > 0) {
     if (saveBtn) {
-      saveBtn.textContent = 'Uploading...';
+      saveBtn.textContent = 'Uploading images (this takes a moment)...';
       saveBtn.style.pointerEvents = 'none';
-      saveBtn.style.opacity = '0.5';
+      saveBtn.style.opacity = '0.7';
     }
     Promise.all(uploads).then(function(results) {
       results.forEach(function(r) { newImages[r.index] = r.url; });
       finalizeSave(newImages);
     }).catch(function(err) {
-      showToast('⚠️ Error uploading images.');
-      if (saveBtn) {
-        saveBtn.textContent = origSaveText;
-        saveBtn.style.pointerEvents = 'auto';
-        saveBtn.style.opacity = '1';
-      }
       console.error(err);
+      showToast('⚠️ Storage upload failed. Ensure Firebase rules allow uploads!');
+      // Fallback: save as base64 anyway so they don't get stuck
+      finalizeSave(images);
     });
   } else {
     finalizeSave(newImages);
