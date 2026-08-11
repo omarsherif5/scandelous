@@ -16,10 +16,9 @@
   <div class="login-box">
     <div class="login-logo">s<span>.</span>candle<span>.</span>ous</div>
     <div class="login-sub">Admin Access Only</div>
-    <div class="login-field" style="flex-direction: column; gap: 10px;">
-      <input type="email" id="loginEmail" class="login-input" placeholder="Admin Email" style="width:100%; border-radius:30px; box-sizing:border-box" onkeypress="if(event.key==='Enter') document.getElementById('loginPwd').focus()"/>
-      <input type="password" id="loginPwd" class="login-input" placeholder="Enter Password" style="width:100%; border-radius:30px; box-sizing:border-box; margin:0;" onkeypress="if(event.key==='Enter')checkLogin()"/>
-      <button class="login-btn" style="width:100%; border-radius:30px; margin:0; margin-top:5px" onclick="checkLogin()">Enter Dashboard</button>
+    <div class="login-field">
+      <input type="password" id="loginPwd" class="login-input" placeholder="Enter Password" onkeypress="if(event.key==='Enter')checkLogin()"/>
+      <button class="login-btn" onclick="checkLogin()">Enter Dashboard</button>
     </div>
     <div class="login-error" id="loginError">Incorrect password</div>
   </div>
@@ -1152,12 +1151,12 @@ function closePromoModal(){closeModal('promoModalOverlay','promoModal')}
 //  AUTH
 // ═══════════════════════════════════════════════════════════
 async function checkLogin() {
-  var email = document.getElementById('loginEmail').value.trim();
+  var email = 'Scandleous09@gmail.com'; // Hardcoded for convenience
   var pwd = document.getElementById('loginPwd').value;
   var btn = document.querySelector('.login-btn');
   
-  if (!email || !pwd) {
-    document.getElementById('loginError').textContent = 'Please enter email and password';
+  if (!pwd) {
+    document.getElementById('loginError').textContent = 'Please enter a password';
     document.getElementById('loginError').classList.add('show');
     setTimeout(function(){ document.getElementById('loginError').classList.remove('show'); }, 3000);
     return;
@@ -1171,7 +1170,7 @@ async function checkLogin() {
     // onAuthStateChanged will handle the UI update
   } catch(err) {
     console.error('Login error:', err);
-    document.getElementById('loginError').textContent = err.message || 'Invalid credentials';
+    document.getElementById('loginError').textContent = 'Incorrect password';
     document.getElementById('loginError').classList.add('show');
     setTimeout(function(){ document.getElementById('loginError').classList.remove('show'); }, 4000);
     btn.textContent = 'Enter Dashboard';
