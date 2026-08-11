@@ -758,13 +758,15 @@ function renderProducts(){
     var isCust=isCustomProduct(p.id);
     var imgs = p.images && p.images.length > 0 ? p.images : (p.image ? [p.image] : []);
     var imgHtml = imgs.length > 0 ? imgs.map(function(src) { return '<img src="'+src+'" alt="'+p.name+'"/>'; }).join('') : '<div style="flex:0 0 100%;width:100%;height:100%;background:'+(p.color||'var(--sand)')+';display:flex;align-items:center;justify-content:center;font-size:2rem;color:white;opacity:0.8;scroll-snap-align:start">✿</div>';
+    var catObj = window.FB_CATEGORIES ? window.FB_CATEGORIES.find(function(c){return c.id===p.category}) : null;
+    var catName = catObj ? catObj.name : (p.category || '');
     return '<div class="prod-admin-card">'+
       (isCust?'<div class="custom-badge">Custom</div>':'')+
       '<div class="prod-admin-img">' +
         imgHtml +
       '</div>' +
       '<div class="prod-admin-info">' +
-        '<div class="prod-admin-cat">'+(p.category==='resin'?'Resin':(p.category==='candles'?'Candles':(p.category==='gypsum'?'Gypsum':(p.category==='her-favorites'?'Her favorites':(p.category||'')))))+(p.badge?' · <span class="prod-badge-tag">'+p.badge+'</span>':'')+'</div>' +
+        '<div class="prod-admin-cat">'+catName+(p.badge?' · <span class="prod-badge-tag">'+p.badge+'</span>':'')+'</div>' +
         '<div class="prod-admin-name">'+p.name+'</div>' +
         '<div class="prod-admin-price">'+STORE_SETTINGS.currency+' '+p.price.toLocaleString()+' <span>EGP</span></div>'+
         getStockLabel(p.id)+
