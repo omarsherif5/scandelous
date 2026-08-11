@@ -1166,6 +1166,7 @@ async function checkLogin() {
   btn.disabled = true;
   
   try {
+    await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION);
     await firebase.auth().signInWithEmailAndPassword(email, pwd);
     // onAuthStateChanged will handle the UI update
   } catch(err) {
