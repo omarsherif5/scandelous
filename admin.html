@@ -287,11 +287,34 @@ function getStatusBadge(status){
 
 function updateOrderStatus(orderNum,newStatus){
   var orders=getOrders();
+  var changedStock = false;
   orders=orders.map(function(o){
-    if(o.orderNum===orderNum){o.status=newStatus}
+    if(o.orderNum===orderNum){
+      var oldStatus = o.status || 'received';
+      
+      // If cancelling order: restore stock
+      if (oldStatus !== 'cancelled' && newStatus === 'cancelled') {
+        o.items.forEach(function(i){
+          var current = getProductStock(i.id);
+          if (current !== null) { setProductStock(i.id, current + i.qty); changedStock = true; }
+        });
+      }
+      // If un-cancelling order: deduct stock
+      else if (oldStatus === 'cancelled' && newStatus !== 'cancelled') {
+        o.items.forEach(function(i){
+          var current = getProductStock(i.id);
+          if (current !== null) { setProductStock(i.id, Math.max(0, current - i.qty)); changedStock = true; }
+        });
+      }
+      
+      o.status=newStatus;
+    }
     return o;
   });
   saveOrders(orders);
+  if (changedStock) {
+    if (typeof renderProducts === 'function') renderProducts();
+  }
   renderStats(orders);
   showToast('✿ Order #'+orderNum+' → '+newStatus.charAt(0).toUpperCase()+newStatus.slice(1));
 }
