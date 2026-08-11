@@ -1428,11 +1428,12 @@ const dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
   }
 
   var usedCache = false;
+  var cacheTimerId = null;
   try {
     var cached = localStorage.getItem('layla_fast_cache');
     if (cached) {
       var cachedData = JSON.parse(cached);
-      setTimeout(function() {
+      cacheTimerId = setTimeout(function() {
         usedCache = applyData(cachedData);
       }, 150); // Show loading indicator for 150ms
     }
@@ -1445,6 +1446,7 @@ const dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
     db.ref('sc_stock').once('value'),
     db.ref('sc_promo_codes').once('value')
   ]).then(function(snapshots) {
+    if (cacheTimerId) clearTimeout(cacheTimerId); // Cancel stale cache if network arrived first
     var data = {
       sc_categories: snapshots[0].val(),
       sc_custom_products: snapshots[1].val(),
