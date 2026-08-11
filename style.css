@@ -34,8 +34,8 @@
     .sp-link:hover{background:var(--blush-lt);color:var(--terra);padding-left:38px}
     .sp-link-arrow{font-size:.7rem;transition:transform .3s;color:var(--char-lt)}
     .sp-link-arrow.rotated{transform:rotate(90deg)}
-    .sp-sub{max-height:0;overflow:hidden;transition:max-height .45s cubic-bezier(.4,0,.2,1);background:transparent}
-    .sp-sub.open{max-height:400px}
+    .sp-sub{max-height:0;overflow-y:auto;overflow-x:hidden;transition:max-height .45s cubic-bezier(.4,0,.2,1);background:transparent}
+    .sp-sub.open{max-height:50vh}
     .sp-sub-link{display:block;padding:12px 32px 12px 48px;font-family:'Jost',sans-serif;font-size:.75rem;letter-spacing:.15em;text-transform:uppercase;color:var(--char-lt);text-decoration:none;transition:all .3s;cursor:pointer;position:relative}
     .sp-sub-link::before{content:'';position:absolute;left:36px;top:50%;width:4px;height:4px;border-radius:50%;background:var(--terra);transform:translateY(-50%) scale(0);transition:transform .3s}
     .sp-sub-link:hover{color:var(--terra);padding-left:56px}
