@@ -968,6 +968,7 @@ function sendOrderEmail(order) {
     console.log('✅ Customer receipt email sent to: ' + c.email);
   }).catch(function(err) {
     console.error('EmailJS error:', err);
+    showToast('⚠️ Order placed but email receipt could not be sent. Check your inbox later.');
   });
 }
 function sendOrderWhatsApp(order) {
