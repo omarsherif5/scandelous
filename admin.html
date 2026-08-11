@@ -233,6 +233,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script src="products.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════
@@ -477,7 +478,7 @@ function handleRestoreBackup(event) {
           });
         }
 
-        showToast('✿ Restoring & compressing images... Please wait.');
+        showToast('✿ Restoring & moving images to Cloudinary... Please wait.');
         var completed = 0;
 
         function finalizeRestore() {
@@ -506,13 +507,25 @@ function handleRestoreBackup(event) {
           finalizeRestore();
         } else {
           tasks.forEach(function(task) {
-            resizeImage(task.img, 600, function(resized) {
+            var formData = new FormData();
+            formData.append('file', task.img);
+            formData.append('upload_preset', 'scandelous_uploads');
+
+            fetch('https://api.cloudinary.com/v1_1/ojz1hsbu/image/upload', {
+              method: 'POST',
+              body: formData
+            }).then(function(r){return r.json()}).then(function(d){
+              var url = d.secure_url || task.img;
               if (task.type === 'image') {
-                task.p.image = resized;
+                task.p.image = url;
               } else {
-                task.p.images[task.idx] = resized;
-                if (task.idx === 0) task.p.image = resized;
+                task.p.images[task.idx] = url;
+                if (task.idx === 0) task.p.image = url;
               }
+              completed++;
+              if (completed === tasks.length) finalizeRestore();
+            }).catch(function(err){
+              console.error(err);
               completed++;
               if (completed === tasks.length) finalizeRestore();
             });
@@ -672,27 +685,32 @@ function clearProductForm(){
 function handleImageFile(e){
   var files=Array.from(e.target.files||[]);
   if(!files.length)return;
+  showToast('✿ Uploading images to Cloudinary... Please wait.');
   files.forEach(function(file){
     if(!file.type.startsWith('image/')){showToast('⚠️ Skipped non-image file');return}
     if(file.size>15*1024*1024){showToast('⚠️ Skipped image over 15MB');return}
-    var reader=new FileReader();
-    reader.onload=function(ev){
-      resizeImage(ev.target.result,600,function(resized){
-        currentImagesData.push(resized);showPreview();
+    
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', 'scandelous_uploads');
+
+    fetch('https://api.cloudinary.com/v1_1/ojz1hsbu/image/upload', {
+      method: 'POST',
+      body: formData
+    }).then(function(res) { return res.json(); }).then(function(data) {
+      if (data.secure_url) {
+        currentImagesData.push(data.secure_url);
+        showPreview();
         document.getElementById('pmImageUrl').value='';
-      });
-    };
-    reader.readAsDataURL(file);
+        showToast('✿ Image uploaded successfully!');
+      } else {
+        showToast('⚠️ Failed to upload image');
+      }
+    }).catch(function(err) {
+      showToast('⚠️ Cloudinary error');
+      console.error(err);
+    });
   });
-}
-function resizeImage(dataUrl,maxW,cb){
-  var img=new Image();img.onload=function(){
-    var w=img.width,h=img.height;
-    if(w>maxW){h=Math.round(h*maxW/w);w=maxW}
-    var c=document.createElement('canvas');c.width=w;c.height=h;
-    c.getContext('2d').drawImage(img,0,0,w,h);
-    cb(c.toDataURL('image/webp',0.5));
-  };img.src=dataUrl;
 }
 function handleImageUrl(){if(document.getElementById('pmImageUrl').value.trim()){currentImagesData=[];removeImage()}}
 function showPreview(){
