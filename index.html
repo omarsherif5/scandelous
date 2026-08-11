@@ -922,6 +922,10 @@ window.DB_REF = db.ref('/');
 const dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
   function getArray(dataStr, fallback) {
     if (!dataStr) return fallback;
+    if (typeof dataStr === 'object') {
+      if (Array.isArray(dataStr)) return dataStr;
+      return Object.keys(dataStr).map(function(k){return dataStr[k]});
+    }
     try {
        var parsed = JSON.parse(dataStr);
        if (Array.isArray(parsed)) return parsed;
@@ -975,7 +979,7 @@ const dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
 
   Promise.all([
     db.ref('sc_categories').once('value'),
-    db.ref('sc_custom_products').once('value'),
+    db.ref('sc_custom_products_v2').once('value'),
     db.ref('sc_deleted_products').once('value'),
     db.ref('sc_stock').once('value'),
     db.ref('sc_promo_codes').once('value')
