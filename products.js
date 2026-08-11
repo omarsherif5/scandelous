@@ -114,7 +114,7 @@ const STORE_SETTINGS = {
   currencyCode: "EGP",
   shippingFee: 80,         // flat shipping fee in EGP (set 0 for free)
   freeShippingOver: 1000,  // free shipping for orders above this amount (set 0 to disable)
-  adminPassword: "layla",  // password to access the admin panel
+  adminPasswordHash: "88bf31488ddf9d2f638b02f39b01aa7d737e4bca132d6bf1e3a23e31c96ef7b8",  // SHA-256 hash of password
   whatsapp: "+201100032419",       // ← YOUR WHATSAPP NUMBER (include country code, e.g. +20...)
   email: "lailawael3@gmail.com",
   instagram: "https://www.instagram.com/s.candle.ous/#",
