@@ -16,9 +16,10 @@
   <div class="login-box">
     <div class="login-logo">s<span>.</span>candle<span>.</span>ous</div>
     <div class="login-sub">Admin Access Only</div>
-    <div class="login-field">
-      <input type="password" id="loginPwd" class="login-input" placeholder="Enter Password" onkeypress="if(event.key==='Enter')checkLogin()"/>
-      <button class="login-btn" onclick="checkLogin()">Enter Dashboard</button>
+    <div class="login-field" style="flex-direction: column; gap: 10px;">
+      <input type="email" id="loginEmail" class="login-input" placeholder="Admin Email" style="width:100%; border-radius:30px; box-sizing:border-box" onkeypress="if(event.key==='Enter') document.getElementById('loginPwd').focus()"/>
+      <input type="password" id="loginPwd" class="login-input" placeholder="Enter Password" style="width:100%; border-radius:30px; box-sizing:border-box; margin:0;" onkeypress="if(event.key==='Enter')checkLogin()"/>
+      <button class="login-btn" style="width:100%; border-radius:30px; margin:0; margin-top:5px" onclick="checkLogin()">Enter Dashboard</button>
     </div>
     <div class="login-error" id="loginError">Incorrect password</div>
   </div>
@@ -31,6 +32,7 @@
   <a href="index.html" class="admin-logo">s<span>.</span>candle<span>.</span>ous</a>
   <span class="nav-tag">✿ Admin Panel</span>
   <a href="index.html" class="nav-link">← View Site</a>
+  <button id="logoutBtn" class="nav-link" style="background:transparent;border:none;cursor:pointer;color:var(--text);font-family:'Jost',sans-serif;margin-left:10px;" onclick="firebase.auth().signOut()">Logout</button>
 </nav>
 
 <div class="admin-body">
@@ -230,6 +232,7 @@
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="products.js"></script>
 <script>
@@ -1149,24 +1152,30 @@ function closePromoModal(){closeModal('promoModalOverlay','promoModal')}
 //  AUTH
 // ═══════════════════════════════════════════════════════════
 async function checkLogin() {
+  var email = document.getElementById('loginEmail').value.trim();
   var pwd = document.getElementById('loginPwd').value;
-  var expectedHash = '88bf31488ddf9d2f638b02f39b01aa7d737e4bca132d6bf1e3a23e31c96ef7b8';
-  try { if (typeof STORE_SETTINGS !== 'undefined' && STORE_SETTINGS.adminPasswordHash) expectedHash = STORE_SETTINGS.adminPasswordHash; } catch(e) {}
+  var btn = document.querySelector('.login-btn');
   
-  // Hash the entered password with SHA-256
-  var encoder = new TextEncoder();
-  var data = encoder.encode(pwd);
-  var hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  var hashArray = Array.from(new Uint8Array(hashBuffer));
-  var inputHash = hashArray.map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
-  
-  if (inputHash === expectedHash) {
-    var overlay = document.getElementById('loginOverlay');
-    overlay.style.opacity = '0';
-    setTimeout(function(){ overlay.style.display = 'none'; }, 400);
-  } else {
+  if (!email || !pwd) {
+    document.getElementById('loginError').textContent = 'Please enter email and password';
     document.getElementById('loginError').classList.add('show');
     setTimeout(function(){ document.getElementById('loginError').classList.remove('show'); }, 3000);
+    return;
+  }
+  
+  btn.textContent = 'Authenticating...';
+  btn.disabled = true;
+  
+  try {
+    await firebase.auth().signInWithEmailAndPassword(email, pwd);
+    // onAuthStateChanged will handle the UI update
+  } catch(err) {
+    console.error('Login error:', err);
+    document.getElementById('loginError').textContent = err.message || 'Invalid credentials';
+    document.getElementById('loginError').classList.add('show');
+    setTimeout(function(){ document.getElementById('loginError').classList.remove('show'); }, 4000);
+    btn.textContent = 'Enter Dashboard';
+    btn.disabled = false;
   }
 }
 
@@ -1186,70 +1195,86 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 window.DB_REF = db.ref('/');
 
-Promise.all([
-  db.ref('sc_categories').once('value').catch(function(e){console.warn('Cats failed'); return {val:function(){return null}};}),
-  db.ref('sc_custom_products').once('value').catch(function(e){console.warn('Prods failed'); return {val:function(){return null}};}),
-  db.ref('sc_deleted_products').once('value').catch(function(e){return {val:function(){return null}};}),
-  db.ref('sc_orders').once('value').catch(function(e){console.warn('Orders failed (Rules?)'); return {val:function(){return null}};}),
-  db.ref('sc_stock').once('value').catch(function(e){return {val:function(){return null}};}),
-  db.ref('sc_promo_codes').once('value').catch(function(e){return {val:function(){return null}};})
-]).then(function(snapshots) {
-  var data = {
-    sc_categories: snapshots[0].val(),
-    sc_custom_products: snapshots[1].val(),
-    sc_deleted_products: snapshots[2].val(),
-    sc_orders: snapshots[3].val(),
-    sc_stock: snapshots[4].val(),
-    sc_promo_codes: snapshots[5].val()
-  };
-  function getArray(dataStr, fallback) {
-    if (!dataStr) return fallback;
-    try {
-       var parsed = (typeof dataStr === 'string') ? JSON.parse(dataStr) : dataStr;
-       if (Array.isArray(parsed)) return parsed;
-       if (typeof parsed === 'object') return Object.keys(parsed).map(function(k){return parsed[k]});
-       return fallback;
-    } catch(e) {
-       return fallback;
-    }
-  }
+firebase.auth().onAuthStateChanged(function(user) {
+  if (user) {
+    // User is signed in, load data
+    var overlay = document.getElementById('loginOverlay');
+    overlay.style.opacity = '0';
+    setTimeout(function(){ overlay.style.display = 'none'; }, 400);
+    
+    Promise.all([
+      db.ref('sc_categories').once('value').catch(function(e){console.warn('Cats failed'); return {val:function(){return null}};}),
+      db.ref('sc_custom_products').once('value').catch(function(e){console.warn('Prods failed'); return {val:function(){return null}};}),
+      db.ref('sc_deleted_products').once('value').catch(function(e){return {val:function(){return null}};}),
+      db.ref('sc_orders').once('value').catch(function(e){console.warn('Orders failed (Rules?)'); return {val:function(){return null}};}),
+      db.ref('sc_stock').once('value').catch(function(e){return {val:function(){return null}};}),
+      db.ref('sc_promo_codes').once('value').catch(function(e){return {val:function(){return null}};})
+    ]).then(function(snapshots) {
+      var data = {
+        sc_categories: snapshots[0].val(),
+        sc_custom_products: snapshots[1].val(),
+        sc_deleted_products: snapshots[2].val(),
+        sc_orders: snapshots[3].val(),
+        sc_stock: snapshots[4].val(),
+        sc_promo_codes: snapshots[5].val()
+      };
+      function getArray(dataStr, fallback) {
+        if (!dataStr) return fallback;
+        try {
+           var parsed = (typeof dataStr === 'string') ? JSON.parse(dataStr) : dataStr;
+           if (Array.isArray(parsed)) return parsed;
+           if (typeof parsed === 'object') return Object.keys(parsed).map(function(k){return parsed[k]});
+           return fallback;
+        } catch(e) {
+           return fallback;
+        }
+      }
 
-  window.FB_CATEGORIES = getArray(data.sc_categories, [
-    {id: 'resin', name: 'Resin'},
-    {id: 'candles', name: 'Candles'},
-    {id: 'gypsum', name: 'Gypsum'},
-    {id: 'her-favorites', name: 'Her favorites'}
-  ]);
-  renderCategoryDropdown();
+      window.FB_CATEGORIES = getArray(data.sc_categories, [
+        {id: 'resin', name: 'Resin'},
+        {id: 'candles', name: 'Candles'},
+        {id: 'gypsum', name: 'Gypsum'},
+        {id: 'her-favorites', name: 'Her favorites'}
+      ]);
+      renderCategoryDropdown();
 
-  window.FB_CUSTOM_PRODUCTS = getArray(data.sc_custom_products, []);
-  window.FB_DELETED_PRODUCTS = getArray(data.sc_deleted_products, []);
-  window.FB_ORDERS = getArray(data.sc_orders, []);
-  
-  try { window.FB_STOCK = (typeof data.sc_stock === 'string') ? JSON.parse(data.sc_stock) : data.sc_stock; } catch(e) {}
-  if (!window.FB_STOCK) window.FB_STOCK = {};
-  
-  window.FB_PROMO_CODES = getArray(data.sc_promo_codes, []);
-  
-  console.log('Admin: Custom products loaded:', window.FB_CUSTOM_PRODUCTS.length);
-  console.log('Admin: Deleted product IDs:', window.FB_DELETED_PRODUCTS);
-  
-  if (window.FB_DELETED_PRODUCTS.length > 0) {
-    PRODUCTS = PRODUCTS.filter(function(p) { return !window.FB_DELETED_PRODUCTS.includes(p.id); });
+      window.FB_CUSTOM_PRODUCTS = getArray(data.sc_custom_products, []);
+      window.FB_DELETED_PRODUCTS = getArray(data.sc_deleted_products, []);
+      window.FB_ORDERS = getArray(data.sc_orders, []);
+      
+      try { window.FB_STOCK = (typeof data.sc_stock === 'string') ? JSON.parse(data.sc_stock) : data.sc_stock; } catch(e) {}
+      if (!window.FB_STOCK) window.FB_STOCK = {};
+      
+      window.FB_PROMO_CODES = getArray(data.sc_promo_codes, []);
+      
+      if (window.FB_DELETED_PRODUCTS.length > 0) {
+        PRODUCTS = PRODUCTS.filter(function(p) { return !window.FB_DELETED_PRODUCTS.includes(p.id); });
+      }
+      if (window.FB_CUSTOM_PRODUCTS.length > 0) {
+        var customIds = window.FB_CUSTOM_PRODUCTS.map(function(p){return p.id});
+        PRODUCTS = PRODUCTS.filter(function(p){return !customIds.includes(p.id)});
+        PRODUCTS = PRODUCTS.concat(window.FB_CUSTOM_PRODUCTS);
+      }
+      
+      renderOrders();
+      renderProducts();
+    }).catch(function(err) {
+      console.error("Firebase error", err);
+      renderOrders();
+    });
+  } else {
+    // User is signed out
+    var overlay = document.getElementById('loginOverlay');
+    overlay.style.display = 'flex';
+    overlay.style.opacity = '1';
+    
+    // Clear data from memory to secure the admin panel on logout
+    window.FB_ORDERS = [];
+    window.FB_CUSTOM_PRODUCTS = [];
+    PRODUCTS = window.BASE_PRODS ? JSON.parse(JSON.stringify(window.BASE_PRODS)) : PRODUCTS.slice(0,3);
+    renderOrders();
+    renderProducts();
   }
-  if (window.FB_CUSTOM_PRODUCTS.length > 0) {
-    var customIds = window.FB_CUSTOM_PRODUCTS.map(function(p){return p.id});
-    PRODUCTS = PRODUCTS.filter(function(p){return !customIds.includes(p.id)});
-    PRODUCTS = PRODUCTS.concat(window.FB_CUSTOM_PRODUCTS);
-  }
-  
-  console.log('Admin: Final PRODUCTS:', PRODUCTS.length);
-  
-  renderOrders();
-  renderProducts();
-}).catch(function(err) {
-  console.error("Firebase error", err);
-  renderOrders();
 });
 </script>
 </body>
