@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Database Compressor</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+  <style>body { font-family: sans-serif; padding: 20px; }</style>
+</head>
+<body>
+  <h2>Scandelous Database Restorer & Compressor</h2>
+  <p>Status: <span id="status">Waiting to start...</span></p>
+  <p>Progress: <span id="progress">0 / 0</span> images compressed.</p>
+  <button id="startBtn">Start Restore</button>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyAxAksxq3AvxwnHpit4Ziz60Xw4M1UEnx0",
+  authDomain: "scandelous-3d5ba.firebaseapp.com",
+  databaseURL: "https://scandelous-3d5ba-default-rtdb.firebaseio.com",
+  projectId: "scandelous-3d5ba",
+  storageBucket: "scandelous-3d5ba.firebasestorage.app",
+  messagingSenderId: "659951201302",
+  appId: "1:659951201302:web:516f6363edc5c2038a5937"
+};
+firebase.initializeApp(firebaseConfig);
+
+function resizeImage(dataUrl, maxW, cb) {
+  var img = new Image();
+  img.onload = function() {
+    var w = img.width, h = img.height;
+    if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, w, h);
+    cb(c.toDataURL('image/webp', 0.5));
+  };
+  img.src = dataUrl;
+}
+
+document.getElementById('startBtn').onclick = async function() {
+  document.getElementById('startBtn').disabled = true;
+  document.getElementById('status').innerText = 'Logging into Firebase...';
+
+  try {
+    await firebase.auth().signInWithEmailAndPassword('Scandleous09@gmail.com', prompt('Enter your admin password:'));
+  } catch (err) {
+    document.getElementById('status').innerText = 'Login failed: ' + err.message;
+    return;
+  }
+
+  document.getElementById('status').innerText = 'Loading temp_products.json...';
+  let response = await fetch('temp_products.json');
+  let text = await response.text();
+  let data = JSON.parse(JSON.parse(text));
+
+  let tasks = [];
+  data.forEach(p => {
+    if (p && p.images && p.images.length > 0) {
+      p.images.forEach((img, idx) => {
+        if (img.startsWith('data:') && img.length > 50000) {
+          tasks.push({ p: p, idx: idx, img: img });
+        }
+      });
+    }
+  });
+
+  document.getElementById('status').innerText = `Found ${tasks.length} large images to compress...`;
+  
+  let completed = 0;
+  for (let i = 0; i < tasks.length; i++) {
+    let task = tasks[i];
+    await new Promise(resolve => {
+      resizeImage(task.img, 600, function(resized) {
+        task.p.images[task.idx] = resized;
+        if(task.idx === 0) task.p.image = resized; // keep backwards compat
+        completed++;
+        document.getElementById('progress').innerText = `${completed} / ${tasks.length}`;
+        resolve();
+      });
+    });
+  }
+
+  document.getElementById('status').innerText = 'Uploading optimized database to Firebase...';
+  try {
+    await firebase.database().ref('/sc_custom_products').set(JSON.stringify(data));
+    document.getElementById('status').innerText = '✅ DONE! Database is fully restored and optimized! You can now close this tab and refresh the Admin Panel.';
+  } catch(err) {
+    document.getElementById('status').innerText = 'Upload failed: ' + err.message;
+  }
+};
+</script>
+</body>
+</html>
