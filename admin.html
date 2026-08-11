@@ -529,7 +529,9 @@ function getOrders() { return window.FB_ORDERS; }
 function saveOrders(o) {
   window.FB_ORDERS = o;
   if(window.DB_REF) {
-    window.DB_REF.child('sc_orders').set(JSON.stringify(o)).catch(function(err) {
+    var ordersObj = {};
+    o.forEach(function(order) { ordersObj[order.orderNum || Date.now()] = order; });
+    window.DB_REF.child('sc_orders').set(ordersObj).catch(function(err) {
       console.error('Failed to save orders to Firebase:', err);
       showToast('⚠️ Failed to save orders to database!');
     });
@@ -617,7 +619,7 @@ function renderOrders(){
 }
 
 function toggleDetail(id){document.getElementById(id).classList.toggle('open')}
-function clearOrders(){if(!confirm('Delete ALL orders? This cannot be undone.'))return;localStorage.removeItem('sc_orders');window.FB_ORDERS=[];if(window.DB_REF)window.DB_REF.child('sc_orders').set('[]');renderOrders();showToast('✿ All orders cleared')}
+function clearOrders(){if(!confirm('Delete ALL orders? This cannot be undone.'))return;localStorage.removeItem('sc_orders');window.FB_ORDERS=[];if(window.DB_REF)window.DB_REF.child('sc_orders').remove();renderOrders();showToast('✿ All orders cleared')}
 
 function adminWhatsApp(orderNum, type){
   var orders = getOrders();

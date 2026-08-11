@@ -889,15 +889,10 @@ function placeOrder() {
   try {
     if (window.DB_REF) {
       var orderData = JSON.parse(JSON.stringify(order));
-      window.DB_REF.child('sc_orders').once('value').then(function(snap) {
-        var fbOrders = [];
-        try { fbOrders = snap.val() ? JSON.parse(snap.val()) : []; } catch(e) { fbOrders = []; }
-        fbOrders.push(orderData);
-        window.DB_REF.child('sc_orders').set(JSON.stringify(fbOrders)).then(function() {
-          console.log('✅ Order saved to Firebase');
-        }).catch(function(e) {
-          console.error('Firebase save error:', e);
-        });
+      window.DB_REF.child('sc_orders').push(orderData).then(function() {
+        console.log('✅ Order saved to Firebase');
+      }).catch(function(e) {
+        console.error('Firebase save error:', e);
       });
     }
     
