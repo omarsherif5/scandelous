@@ -1417,15 +1417,19 @@ Promise.all([
     sc_stock: snapshots[4].val(),
     sc_promo_codes: snapshots[5].val()
   };
-  function safeParse(val, fallback) {
-    if (!val) return fallback;
-    if (typeof val === 'string') {
-      try { return JSON.parse(val); } catch(e) { return fallback; }
+  function getArray(dataStr, fallback) {
+    if (!dataStr) return fallback;
+    try {
+       var parsed = (typeof dataStr === 'string') ? JSON.parse(dataStr) : dataStr;
+       if (Array.isArray(parsed)) return parsed;
+       if (typeof parsed === 'object') return Object.keys(parsed).map(function(k){return parsed[k]});
+       return fallback;
+    } catch(e) {
+       return fallback;
     }
-    return val;
   }
 
-  window.FB_CATEGORIES = safeParse(data.sc_categories, [
+  window.FB_CATEGORIES = getArray(data.sc_categories, [
     {id: 'resin', name: 'Resin'},
     {id: 'candles', name: 'Candles'},
     {id: 'gypsum', name: 'Gypsum'},
@@ -1433,11 +1437,14 @@ Promise.all([
   ]);
   renderCategoryDropdown();
 
-  window.FB_CUSTOM_PRODUCTS = safeParse(data.sc_custom_products, []);
-  window.FB_DELETED_PRODUCTS = safeParse(data.sc_deleted_products, []);
-  window.FB_ORDERS = safeParse(data.sc_orders, []);
-  window.FB_STOCK = safeParse(data.sc_stock, {});
-  window.FB_PROMO_CODES = safeParse(data.sc_promo_codes, []);
+  window.FB_CUSTOM_PRODUCTS = getArray(data.sc_custom_products, []);
+  window.FB_DELETED_PRODUCTS = getArray(data.sc_deleted_products, []);
+  window.FB_ORDERS = getArray(data.sc_orders, []);
+  
+  try { window.FB_STOCK = (typeof data.sc_stock === 'string') ? JSON.parse(data.sc_stock) : data.sc_stock; } catch(e) {}
+  if (!window.FB_STOCK) window.FB_STOCK = {};
+  
+  window.FB_PROMO_CODES = getArray(data.sc_promo_codes, []);
   
   console.log('Admin: Custom products loaded:', window.FB_CUSTOM_PRODUCTS.length);
   console.log('Admin: Deleted product IDs:', window.FB_DELETED_PRODUCTS);
