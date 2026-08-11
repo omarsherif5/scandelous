@@ -9,7 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet"/>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
   <script src="products.js"></script>
   <style>
     *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -964,117 +963,62 @@ function saveProduct(){
     images = images.concat(urls);
   }
 
-  var saveBtn = document.querySelector('.pm-save-btn');
-  var origSaveText = saveBtn ? saveBtn.textContent : '✿ Save Product';
+  var customProducts=getCustomProducts();
 
-  function finalizeSave(finalImages) {
-    if (saveBtn) {
-      saveBtn.textContent = origSaveText;
-      saveBtn.style.pointerEvents = 'auto';
-      saveBtn.style.opacity = '1';
+  var colorsArr = [];
+  document.querySelectorAll('.variant-row').forEach(function(row) {
+    var vName = row.querySelector('.var-name').value.trim();
+    var vType = row.querySelector('.var-type').value;
+    var vHex = row.querySelector('.var-hex').value;
+    var vImg = row.querySelector('.var-img').value;
+    if (vName) {
+      var variant = { name: vName, type: vType };
+      if (vType === 'hex') variant.hex = vHex;
+      if (vImg && !isNaN(parseInt(vImg))) variant.imageIndex = parseInt(vImg) - 1;
+      colorsArr.push(variant);
     }
-    
-    var customProducts=getCustomProducts();
-    var colorsArr = [];
-    document.querySelectorAll('.variant-row').forEach(function(row) {
-      var vName = row.querySelector('.var-name').value.trim();
-      var vType = row.querySelector('.var-type').value;
-      var vHex = row.querySelector('.var-hex').value;
-      var vImg = row.querySelector('.var-img').value;
-      if (vName) {
-        var variant = { name: vName, type: vType };
-        if (vType === 'hex') variant.hex = vHex;
-        if (vImg && !isNaN(parseInt(vImg))) variant.imageIndex = parseInt(vImg) - 1;
-        colorsArr.push(variant);
-      }
-    });
+  });
 
-    var pricingOptions = [];
-    document.querySelectorAll('.pricing-row').forEach(function(row) {
-      var prName = row.querySelector('.pr-name').value.trim();
-      var prPrice = parseFloat(row.querySelector('.pr-price').value);
-      if (prName && prPrice > 0) {
-        pricingOptions.push({ name: prName, price: prPrice });
-      }
-    });
+  var pricingOptions = [];
+  document.querySelectorAll('.pricing-row').forEach(function(row) {
+    var prName = row.querySelector('.pr-name').value.trim();
+    var prPrice = parseFloat(row.querySelector('.pr-price').value);
+    if (prName && prPrice > 0) {
+      pricingOptions.push({ name: prName, price: prPrice });
+    }
+  });
 
-    if(editId){
-      editId=parseInt(editId);
-      var prodData={id:editId,name:name,category:category,scent:scent,price:price,badge:badge,images:finalImages,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr,pricingOptions:pricingOptions};
-      if(isCustomProduct(editId)){
-        customProducts=customProducts.map(function(p){return p.id===editId?prodData:p});
-      } else {
-        var deleted=getDeletedProducts();
-        if(!deleted.includes(editId)){deleted.push(editId);saveDeletedProducts(deleted)}
-        PRODUCTS=PRODUCTS.filter(function(p){return p.id!==editId});
-        customProducts.push(prodData);
-      }
-      if(stockVal!==''){setProductStock(editId,parseInt(stockVal))}
-      PRODUCTS=PRODUCTS.map(function(p){return p.id===editId?prodData:p});
-      if(!PRODUCTS.some(function(p){return p.id===editId}))PRODUCTS.push(prodData);
+  if(editId){
+    editId=parseInt(editId);
+    var prodData={id:editId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr,pricingOptions:pricingOptions};
+    if(isCustomProduct(editId)){
+      customProducts=customProducts.map(function(p){return p.id===editId?prodData:p});
     } else {
-      var maxId=100;
-      PRODUCTS.forEach(function(p){if(p.id>=maxId)maxId=p.id+1});
-      customProducts.forEach(function(p){if(p.id>=maxId)maxId=p.id+1});
-      maxId++;
-      var newProd={id:maxId,name:name,category:category,scent:scent,price:price,badge:badge,images:finalImages,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr,pricingOptions:pricingOptions};
-      customProducts.push(newProd);PRODUCTS.push(newProd);
-      if(stockVal!=='')setProductStock(maxId,parseInt(stockVal));
+      var deleted=getDeletedProducts();
+      if(!deleted.includes(editId)){deleted.push(editId);saveDeletedProducts(deleted)}
+      PRODUCTS=PRODUCTS.filter(function(p){return p.id!==editId});
+      customProducts.push(prodData);
     }
-    
-    saveCustomProducts(customProducts, function() {
-      showToast('✿ "'+name+'" ' + (editId ? 'updated' : 'added') + ' & saved to database!');
-      closeModal('productModalOverlay','productModal');
-      renderProducts();
-    }, function() {
-      renderProducts();
-    });
-  }
-
-  var uploads = [];
-  var newImages = [];
-  
-  try {
-    images.forEach(function(img, idx) {
-      if (img && typeof img === 'string' && img.startsWith('data:image/')) {
-        var ref = storage.ref('products/img_' + Date.now() + '_' + idx + '.jpg');
-        uploads.push(
-          ref.putString(img, 'data_url').then(function(snapshot) {
-            return snapshot.ref.getDownloadURL();
-          }).then(function(url) {
-            return { index: idx, url: url };
-          })
-        );
-        newImages.push(null);
-      } else {
-        newImages.push(img);
-      }
-    });
-  } catch(e) {
-    console.error("Storage setup error:", e);
-    // If setting up the upload fails entirely, fallback to saving as base64
-    uploads = [];
-    newImages = images;
-  }
-
-  if (uploads.length > 0) {
-    if (saveBtn) {
-      saveBtn.textContent = 'Uploading images (this takes a moment)...';
-      saveBtn.style.pointerEvents = 'none';
-      saveBtn.style.opacity = '0.7';
-    }
-    Promise.all(uploads).then(function(results) {
-      results.forEach(function(r) { newImages[r.index] = r.url; });
-      finalizeSave(newImages);
-    }).catch(function(err) {
-      console.error(err);
-      showToast('⚠️ Storage upload failed. Ensure Firebase rules allow uploads!');
-      // Fallback: save as base64 anyway so they don't get stuck
-      finalizeSave(images);
-    });
+    // Update stock
+    if(stockVal!==''){setProductStock(editId,parseInt(stockVal))}
+    PRODUCTS=PRODUCTS.map(function(p){return p.id===editId?prodData:p});
+    if(!PRODUCTS.some(function(p){return p.id===editId}))PRODUCTS.push(prodData);
   } else {
-    finalizeSave(newImages);
+    var maxId=100;
+    PRODUCTS.forEach(function(p){if(p.id>=maxId)maxId=p.id+1});
+    customProducts.forEach(function(p){if(p.id>=maxId)maxId=p.id+1});
+    maxId++;
+    var newProd={id:maxId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr,pricingOptions:pricingOptions};
+    customProducts.push(newProd);PRODUCTS.push(newProd);
+    if(stockVal!=='')setProductStock(maxId,parseInt(stockVal));
   }
+  saveCustomProducts(customProducts, function() {
+    showToast('✿ "'+name+'" ' + (editId ? 'updated' : 'added') + ' & saved to database!');
+    closeModal('productModalOverlay','productModal');
+    renderProducts();
+  }, function() {
+    renderProducts();
+  });
 }
 
 // Delete product
@@ -1455,7 +1399,6 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
-const storage = firebase.storage();
 window.DB_REF = db.ref('/');
 
 Promise.all([
