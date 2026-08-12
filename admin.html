@@ -725,10 +725,31 @@ function showPreview(){
   var cont=document.getElementById('previewContainer');
   cont.style.display='flex';
   cont.innerHTML=currentImagesData.map(function(src,i){
-    return '<div style="position:relative;flex-shrink:0"><img src="'+src+'" style="max-height:120px;border-radius:12px"/><button class="remove-preview" onclick="event.stopPropagation();removeImageIdx('+i+')">✕</button></div>';
+    return '<div draggable="true" ondragstart="dragImgStart(event, '+i+')" ondragover="dragImgOver(event)" ondrop="dropImg(event, '+i+')" style="position:relative;flex-shrink:0;cursor:grab"><img src="'+src+'" style="max-height:120px;border-radius:12px;pointer-events:none;"/><button class="remove-preview" onclick="event.stopPropagation();removeImageIdx('+i+')">✕</button></div>';
   }).join('');
   document.getElementById('imageUploadZone').classList.add('has-image');
 }
+
+var draggedImgIdx = null;
+function dragImgStart(e, idx) {
+  draggedImgIdx = idx;
+  e.dataTransfer.effectAllowed = 'move';
+}
+function dragImgOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+}
+function dropImg(e, dropIdx) {
+  e.preventDefault();
+  e.stopPropagation();
+  if (draggedImgIdx !== null && draggedImgIdx !== dropIdx) {
+    var item = currentImagesData.splice(draggedImgIdx, 1)[0];
+    currentImagesData.splice(dropIdx, 0, item);
+    showPreview();
+  }
+  draggedImgIdx = null;
+}
+
 function removeImageIdx(i){
   currentImagesData.splice(i,1);
   if(currentImagesData.length===0) removeImage();
