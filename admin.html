@@ -164,6 +164,10 @@
       <div class="pm-field"><label>Badge</label>
         <select id="pmBadge"><option value="">None</option><option value="New Arrival">New Arrival</option><option value="Best Seller">Best Seller</option><option value="Limited">Limited</option><option value="Gift Set">Gift Set</option></select>
       </div>
+      <div class="pm-field" style="display:flex;align-items:center;gap:8px;">
+        <input type="checkbox" id="pmRequiresLetter" style="width:20px;height:20px;cursor:pointer;"/>
+        <label for="pmRequiresLetter" style="margin:0;cursor:pointer;">Requires 1-Letter Input</label>
+      </div>
       <div class="pm-field"><label>Stock Quantity</label><input type="number" id="pmStock" placeholder="Leave empty = unlimited" min="0"/></div>
       <div class="pm-field"><label>Placeholder Color</label><input type="color" id="pmColor" value="#D9A8A8" style="height:46px;cursor:pointer"/></div>
       <div class="pm-field" style="grid-column:1/-1">
@@ -359,7 +363,7 @@ function renderOrders(){
       '<td><div class="order-num">#'+o.orderNum+'</div></td>'+
       '<td style="font-size:.82rem;color:var(--text-light)">'+dateStr+'<br/><span style="font-size:.74rem;opacity:.7">'+timeStr+'</span></td>'+
       '<td style="font-size:.86rem">'+o.customer.firstName+' '+o.customer.lastName+'<br/><span style="font-size:.76rem;color:var(--text-light)">'+o.customer.email+'</span></td>'+
-      '<td><div class="order-items-list">'+o.items.map(function(i){return i.name+' ×'+i.qty}).join('<br/>')+'</div></td>'+
+      '<td><div class="order-items-list">'+o.items.map(function(i){return i.name+(i.letter?' ('+i.letter+')':'')+' ×'+i.qty}).join('<br/>')+'</div></td>'+
       '<td style="font-weight:500">'+fmt(o.total)+(o.discount?'<br/><span style="font-size:.7rem;color:var(--green)">-'+fmt(o.discount)+' discount</span>':'')+'</td>'+
       '<td><select class="status-select" onchange="updateOrderStatus(\''+o.orderNum+'\',this.value)">'+
         ['received','processing','shipped','delivered','cancelled'].map(function(s){
@@ -384,7 +388,7 @@ function renderOrders(){
         '<div class="detail-section"><h4>Order Notes</h4><p>'+(o.customer.notes||'<em style="opacity:.5">None</em>')+'</p></div>'+
       '</div>'+
       '<div class="detail-items"><table><thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr></thead><tbody>'+
-        o.items.map(function(i){return '<tr><td>'+i.name+'</td><td>'+i.qty+'</td><td>'+fmt(i.price)+'</td><td>'+fmt(i.price*i.qty)+'</td></tr>'}).join('')+
+        o.items.map(function(i){return '<tr><td>'+i.name+(i.letter?' <strong>(Letter: '+i.letter+')</strong>':'')+'</td><td>'+i.qty+'</td><td>'+fmt(i.price)+'</td><td>'+fmt(i.price*i.qty)+'</td></tr>'}).join('')+
         (o.discount?'<tr><td colspan="3" style="text-align:right;color:var(--green)">Discount ('+o.promoCode+')</td><td style="color:var(--green)">-'+fmt(o.discount)+'</td></tr>':'')+
         '<tr style="font-weight:500"><td colspan="3" style="text-align:right;padding-top:12px">Total Paid</td><td style="padding-top:12px">'+fmt(o.total)+'</td></tr>'+
       '</tbody></table></div>'+
@@ -644,6 +648,7 @@ function editProduct(id){
   document.getElementById('pmMaterial').value=p.material||'';
   document.getElementById('pmWick').value=p.wick||'';
   document.getElementById('pmBadge').value=p.badge||'';
+  document.getElementById('pmRequiresLetter').checked=!!p.requiresLetter;
   document.getElementById('pmColor').value=p.color||'#D9A8A8';
   
   document.getElementById('pmVariantsContainer').innerHTML = '';
@@ -680,8 +685,8 @@ function editProduct(id){
 function clearProductForm(){
   ['pmName','pmScent','pmDesc','pmBurn','pmWeight','pmImageUrl','pmMaterial','pmWick'].forEach(function(id){document.getElementById(id).value=''});
   document.getElementById('pmCategory').value='resin';
-  document.getElementById('pmPrice').value='';
   document.getElementById('pmBadge').value='';
+  document.getElementById('pmRequiresLetter').checked=false;
   document.getElementById('pmColor').value='#D9A8A8';
   document.getElementById('pmVariantsContainer').innerHTML='';
   document.getElementById('pmPricingContainer').innerHTML='';
@@ -814,6 +819,7 @@ function saveProduct(){
   var burnTime=document.getElementById('pmBurn').value.trim();
   var weight=document.getElementById('pmWeight').value.trim();
   var badge=document.getElementById('pmBadge').value;
+  var requiresLetter=document.getElementById('pmRequiresLetter').checked;
   var color=document.getElementById('pmColor').value;
   var imageUrl=document.getElementById('pmImageUrl').value.trim();
   var stockVal=document.getElementById('pmStock').value.trim();
@@ -861,7 +867,7 @@ function saveProduct(){
 
   if(editId){
     editId=parseInt(editId);
-    var prodData={id:editId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr,pricingOptions:pricingOptions};
+    var prodData={id:editId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr,pricingOptions:pricingOptions,requiresLetter:requiresLetter};
     if(isCustomProduct(editId)){
       customProducts=customProducts.map(function(p){return p.id===editId?prodData:p});
     } else {
@@ -878,7 +884,7 @@ function saveProduct(){
     PRODUCTS.forEach(function(p){if(p.id>=maxId)maxId=p.id+1});
     customProducts.forEach(function(p){if(p.id>=maxId)maxId=p.id+1});
     maxId++;
-    var prodData={id:maxId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr,pricingOptions:pricingOptions};
+    var prodData={id:maxId,name:name,category:category,scent:scent,price:price,badge:badge,images:images,desc:desc,burnTime:burnTime,weight:weight,material:material,wick:wick,inStock:true,color:color,colors:colorsArr,pricingOptions:pricingOptions,requiresLetter:requiresLetter};
     customProducts.push(prodData);PRODUCTS.push(prodData);
     if(stockVal!=='')setProductStock(maxId,parseInt(stockVal));
   }

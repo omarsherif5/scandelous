@@ -248,6 +248,10 @@
       <div class="detail-desc" id="detailDesc"></div>
       <div class="detail-pricing" id="detailPricing"></div>
       <div class="detail-colors" id="detailColors"></div>
+      <div class="detail-letter" id="detailLetterContainer" style="display:none;margin-top:20px;">
+        <div class="detail-colors-label">Customization:</div>
+        <input type="text" id="detailLetterInput" maxlength="1" placeholder="Enter 1 letter" style="padding:10px;border:1.5px solid var(--sand);border-radius:8px;font-family:'Jost',sans-serif;font-size:1rem;width:100%;max-width:150px;text-align:center;text-transform:uppercase;" oninput="this.value = this.value.toUpperCase().replace(/[^A-Z]/g, '')"/>
+      </div>
       <div class="detail-meta" id="detailMeta"></div>
       <div class="detail-price" id="detailPrice"></div>
       <button class="detail-add-btn" id="detailAddBtn">Add to Bag</button>
@@ -340,15 +344,15 @@ function updateCartUI() {
     return '<div class="cart-item">' +
       '<div class="ci-img">' + (item.image ? '<img src="' + item.image + '" alt="' + item.name + '"/>' : '<span style="font-size:1.8rem">🕯️</span>') + '</div>' +
       '<div style="flex:1;min-width:0">' +
-        '<div class="ci-name">' + item.name + (item.color ? ' - ' + item.color : '') + '</div>' +
+        '<div class="ci-name">' + item.name + (item.color ? ' - ' + item.color : '') + (item.letter ? ' (' + item.letter + ')' : '') + '</div>' +
         '<div class="ci-controls">' +
-          '<button class="qty-btn" onclick="updateQty(' + item.id + ',\'' + (item.color||'') + '\',\'' + (item.pricingOption||'') + '\',-1)">−</button>' +
+          '<button class="qty-btn" onclick="updateQty(' + item.id + ',\'' + (item.color||'') + '\',\'' + (item.pricingOption||'') + '\',\'' + (item.letter||'') + '\',-1)">−</button>' +
           '<span class="qty-num">' + item.qty + '</span>' +
-          '<button class="qty-btn" onclick="updateQty(' + item.id + ',\'' + (item.color||'') + '\',\'' + (item.pricingOption||'') + '\',1)">+</button>' +
+          '<button class="qty-btn" onclick="updateQty(' + item.id + ',\'' + (item.color||'') + '\',\'' + (item.pricingOption||'') + '\',\'' + (item.letter||'') + '\',1)">+</button>' +
         '</div>' +
         '<div class="ci-row2">' +
           '<span class="ci-price">' + fmt(item.price * item.qty) + '</span>' +
-          '<button class="ci-remove" onclick="updateQty(' + item.id + ',\'' + (item.color||'') + '\',\'' + (item.pricingOption||'') + '\',-999)">Remove</button>' +
+          '<button class="ci-remove" onclick="updateQty(' + item.id + ',\'' + (item.color||'') + '\',\'' + (item.pricingOption||'') + '\',\'' + (item.letter||'') + '\',-999)">Remove</button>' +
         '</div>' +
       '</div></div>';
   }).join('');
@@ -392,13 +396,28 @@ function addToCart(id, colorOverride, pricingOptionOverride) {
     }
   }
 
+  var letterVal = '';
+  if (p.requiresLetter) {
+    if (document.getElementById('detailModal').classList.contains('open')) {
+      letterVal = document.getElementById('detailLetterInput').value.trim();
+      if (!letterVal) {
+        showToast('⚠️ Please enter your custom letter');
+        return;
+      }
+    } else {
+      openDetail(id);
+      showToast('⚠️ Please enter your custom letter');
+      return;
+    }
+  }
+
   var finalPrice = p.price;
   if (pricingOptionToUse) {
     var opt = p.pricingOptions.find(function(o){return o.name===pricingOptionToUse});
     if(opt) finalPrice = opt.price;
   }
 
-  var ex = cart.find(function(x) { return x.id === id && x.color === colorToUse && x.pricingOption === pricingOptionToUse; });
+  var ex = cart.find(function(x) { return x.id === id && x.color === colorToUse && x.pricingOption === pricingOptionToUse && x.letter === letterVal; });
   var currentQty = ex ? ex.qty : 0;
   var stock = getProductStock(id);
   
@@ -411,15 +430,17 @@ function addToCart(id, colorOverride, pricingOptionOverride) {
   else { 
     var firstImg = p.images && p.images.length > 0 ? p.images[0] : (p.image || '');
     var cleanName = p.name.split('(')[0].trim();
-    cart.push({ id: p.id, name: cleanName, price: finalPrice, image: firstImg, color: colorToUse, pricingOption: pricingOptionToUse, qty: 1 }); 
+    var newItem = { id: p.id, name: cleanName, price: finalPrice, image: firstImg, color: colorToUse, pricingOption: pricingOptionToUse, qty: 1 };
+    if (letterVal) newItem.letter = letterVal;
+    cart.push(newItem); 
   }
   saveCart();
   updateCartUI();
   showToast(p.name + ' added to bag');
 }
 
-function updateQty(id, color, pricingOption, d) {
-  var item = cart.find(function(x) { return x.id === id && (x.color||'') === color && (x.pricingOption||'') === pricingOption; });
+function updateQty(id, color, pricingOption, letter, d) {
+  var item = cart.find(function(x) { return x.id === id && (x.color||'') === color && (x.pricingOption||'') === pricingOption && (x.letter||'') === letter; });
   if (!item) return;
   
   var stock = getProductStock(id);
@@ -429,7 +450,7 @@ function updateQty(id, color, pricingOption, d) {
   }
   
   item.qty += d;
-  if (item.qty <= 0) cart = cart.filter(function(x) { return !(x.id === id && (x.color||'') === color && (x.pricingOption||'') === pricingOption); });
+  if (item.qty <= 0) cart = cart.filter(function(x) { return !(x.id === id && (x.color||'') === color && (x.pricingOption||'') === pricingOption && (x.letter||'') === letter); });
   saveCart();
   updateCartUI();
 }
@@ -474,7 +495,8 @@ function buildOrderSummary() {
   var t = cartTotals();
   var html = '<div class="order-summary-items">';
   html += cart.map(function(i) {
-    return '<div class="os-row"><span><span class="os-name">' + i.name + '</span><span class="os-qty">× ' + i.qty + '</span></span><span>' + fmt(i.price * i.qty) + '</span></div>';
+    var desc = i.name + (i.letter ? ' (' + i.letter + ')' : '');
+    return '<div class="os-row"><span><span class="os-name">' + desc + '</span><span class="os-qty">× ' + i.qty + '</span></span><span>' + fmt(i.price * i.qty) + '</span></div>';
   }).join('');
   html += '<div class="os-row"><span>Shipping</span><span>' + (t.ship === 0 ? 'Free' : fmt(t.ship)) + '</span></div>';
   if (t.discount > 0) {
@@ -615,7 +637,8 @@ function sendOrderEmail(order) {
   
   var itemsList = order.items.map(function(i) {
     var cleanName = i.name.split('(')[0].trim();
-    return cleanName + (i.color ? ' (' + i.color + ')' : '') + '  ×  ' + i.qty + '  —  ' + STORE_SETTINGS.currency + ' ' + (i.price * i.qty).toLocaleString();
+    var letterPart = i.letter ? ' | Letter: ' + i.letter : '';
+    return cleanName + (i.color ? ' (' + i.color + ')' : '') + letterPart + '  ×  ' + i.qty + '  —  ' + STORE_SETTINGS.currency + ' ' + (i.price * i.qty).toLocaleString();
   }).join('\n');
 
   emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
@@ -718,6 +741,15 @@ function openDetail(id) {
   }
   document.getElementById('detailColors').innerHTML = colorHtml;
 
+  var letterContainer = document.getElementById('detailLetterContainer');
+  var letterInput = document.getElementById('detailLetterInput');
+  if (p.requiresLetter) {
+    letterContainer.style.display = 'block';
+    letterInput.value = '';
+  } else {
+    letterContainer.style.display = 'none';
+  }
+
   if (stock === 0) {
     addBtn.textContent = 'Out of Stock';
     addBtn.style.opacity = '0.5';
@@ -729,7 +761,7 @@ function openDetail(id) {
     addBtn.style.cursor = 'pointer';
     addBtn.onclick = function() {
       addToCart(p.id, currentSelectedColor, currentSelectedPricingOption);
-      if (((!p.colors || p.colors.length === 0) || currentSelectedColor) && ((!p.pricingOptions || p.pricingOptions.length === 0) || currentSelectedPricingOption)) {
+      if (((!p.colors || p.colors.length === 0) || currentSelectedColor) && ((!p.pricingOptions || p.pricingOptions.length === 0) || currentSelectedPricingOption) && (!p.requiresLetter || letterInput.value.trim())) {
         closeDetail();
       }
     };
