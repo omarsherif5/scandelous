@@ -1013,24 +1013,39 @@ const dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
     }
   }
 
-  // ── Robust loader: SDK → REST fallback → localStorage cache ──
+  // ── Robust loader: Race SDK vs REST, whoever wins first ──
   function loadViaREST() {
-    var base = dbUrl;
-    return Promise.all([
-      fetch(base + '/sc_categories.json').then(function(r){return r.json()}).catch(function(){return null}),
-      fetch(base + '/sc_custom_products_v2.json').then(function(r){return r.json()}).catch(function(){return null}),
-      fetch(base + '/sc_deleted_products.json').then(function(r){return r.json()}).catch(function(){return null}),
-      fetch(base + '/sc_stock.json').then(function(r){return r.json()}).catch(function(){return null}),
-      fetch(base + '/sc_promo_codes.json').then(function(r){return r.json()}).catch(function(){return null}),
-      fetch(base + '/sc_settings.json').then(function(r){return r.json()}).catch(function(){return null})
-    ]).then(function(results) {
+    return fetch(dbUrl + '/.json?shallow=false').then(function(r) {
+      if (!r.ok) throw new Error('REST ' + r.status);
+      return r.json();
+    }).then(function(root) {
       return {
-        sc_categories: results[0],
-        sc_custom_products: results[1],
-        sc_deleted_products: results[2],
-        sc_stock: results[3],
-        sc_promo_codes: results[4],
-        sc_settings: results[5]
+        sc_categories: root.sc_categories || null,
+        sc_custom_products: root.sc_custom_products_v2 || null,
+        sc_deleted_products: root.sc_deleted_products || null,
+        sc_stock: root.sc_stock || null,
+        sc_promo_codes: root.sc_promo_codes || null,
+        sc_settings: root.sc_settings || null
+      };
+    });
+  }
+
+  function loadViaSDK() {
+    return Promise.all([
+      db.ref('sc_categories').once('value'),
+      db.ref('sc_custom_products_v2').once('value'),
+      db.ref('sc_deleted_products').once('value'),
+      db.ref('sc_stock').once('value'),
+      db.ref('sc_promo_codes').once('value'),
+      db.ref('sc_settings').once('value')
+    ]).then(function(snapshots) {
+      return {
+        sc_categories: snapshots[0].val(),
+        sc_custom_products: snapshots[1].val(),
+        sc_deleted_products: snapshots[2].val(),
+        sc_stock: snapshots[3].val(),
+        sc_promo_codes: snapshots[4].val(),
+        sc_settings: snapshots[5].val()
       };
     });
   }
@@ -1043,7 +1058,7 @@ const dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
     try { return JSON.parse(localStorage.getItem('layla_fast_cache')); } catch(e) { return null; }
   }
 
-  // Try cached data FIRST for instant render
+  // 1) Instant render from cache
   var usedCache = false;
   var cached = getCachedData();
   if (cached) {
@@ -1051,39 +1066,28 @@ const dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
     usedCache = true;
   }
 
-  // Then try SDK
-  Promise.all([
-    db.ref('sc_categories').once('value'),
-    db.ref('sc_custom_products_v2').once('value'),
-    db.ref('sc_deleted_products').once('value'),
-    db.ref('sc_stock').once('value'),
-    db.ref('sc_promo_codes').once('value'),
-    db.ref('sc_settings').once('value')
-  ]).then(function(snapshots) {
-    var data = {
-      sc_categories: snapshots[0].val(),
-      sc_custom_products: snapshots[1].val(),
-      sc_deleted_products: snapshots[2].val(),
-      sc_stock: snapshots[3].val(),
-      sc_promo_codes: snapshots[4].val(),
-      sc_settings: snapshots[5].val()
-    };
+  // 2) Race SDK vs REST — first to respond wins
+  var resolved = false;
+  function onDataReady(data, source) {
+    if (resolved) return;
+    resolved = true;
+    console.log('Data loaded via ' + source);
     cacheData(data);
     applyData(data);
-  }).catch(function(err) {
-    console.warn("Firebase SDK failed, trying REST API...", err);
-    loadViaREST().then(function(data) {
-      cacheData(data);
-      applyData(data);
-    }).catch(function(err2) {
-      console.error("REST API also failed", err2);
-      if (!usedCache) {
-        if (!window.BASE_PRODS) window.BASE_PRODS = JSON.parse(JSON.stringify(PRODUCTS));
-        PRODUCTS = JSON.parse(JSON.stringify(window.BASE_PRODS));
-        renderProducts();
-      }
-    });
-  });
+  }
+
+  loadViaREST().then(function(data) { onDataReady(data, 'REST'); }).catch(function(e) { console.warn('REST failed', e); });
+  loadViaSDK().then(function(data) { onDataReady(data, 'SDK'); }).catch(function(e) { console.warn('SDK failed', e); });
+
+  // 3) Safety net: if neither responds in 8s and no cache, show defaults
+  setTimeout(function() {
+    if (!resolved && !usedCache) {
+      console.warn('Both loaders timed out, showing defaults');
+      if (!window.BASE_PRODS) window.BASE_PRODS = JSON.parse(JSON.stringify(PRODUCTS));
+      PRODUCTS = JSON.parse(JSON.stringify(window.BASE_PRODS));
+      renderProducts();
+    }
+  }, 8000);
 
 function renderDynamicCategories() {
   var filtersContainer = document.querySelector('.filters');
