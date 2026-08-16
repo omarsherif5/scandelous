@@ -848,7 +848,7 @@ function renderProducts(filter) {
     
     return '<div class="product-card reveal" style="transition-delay:' + (i * 55) + 'ms;' + (isOut ? 'opacity:0.6' : '') + '">' +
       '<div class="card-img">' +
-        '<div class="card-img-scroll">' + imgsHtml + '</div>' +
+        '<div class="card-img-scroll" onclick="openDetail(' + p.id + ')" style="cursor:pointer">' + imgsHtml + '</div>' +
         dotsHtml +
         getBadge(isOut ? 'Sold Out' : p.badge) +
         '<button class="card-quick" onclick="openDetail(' + p.id + ')">View Details</button>' +
