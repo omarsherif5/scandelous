@@ -88,12 +88,28 @@
   <div class="tab-panel" id="tab-discounts">
     <div class="section-header">
       <div>
-        <div class="section-title">Promo Codes & Discounts</div>
-        <p style="font-size:.84rem;color:var(--text-light);margin-top:6px">Create discount codes your customers can enter at checkout.</p>
+        <div class="section-title">Store Rules & Discounts</div>
+        <p style="font-size:.84rem;color:var(--text-light);margin-top:6px">Manage global rules like free shipping and promo codes.</p>
       </div>
       <button class="action-btn primary" onclick="openAddPromo()">
         <span style="font-size:1.1rem">+</span> Create Code
       </button>
+    </div>
+    
+    <!-- Global Rules Section -->
+    <div style="background:#fff;padding:20px;border-radius:12px;margin-bottom:30px;box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+      <h3 style="margin-top:0;margin-bottom:15px;font-size:1.1rem;color:var(--charcoal)">Free Shipping Rule</h3>
+      <div style="display:flex;align-items:center;gap:15px;">
+        <label class="promo-toggle">
+          <input type="checkbox" id="settingFreeShipActive" onchange="saveSettings()"/>
+          <span class="slider"></span>
+        </label>
+        <span style="font-weight:500">Activate "Free Shipping Over X Amount"</span>
+      </div>
+      <div style="margin-top:15px;display:flex;align-items:center;gap:10px;">
+        <label style="font-size:0.9rem;color:var(--text-light);">Minimum Order Amount (EGP):</label>
+        <input type="number" id="settingFreeShipAmount" min="0" onblur="saveSettings()" style="width:120px;padding:8px;border:1px solid #ddd;border-radius:6px;"/>
+      </div>
     </div>
     <div class="promo-cards" id="promoGrid"></div>
     <div id="promoEmpty"></div>
@@ -1075,6 +1091,11 @@ function deletePromo(code){
 }
 
 function renderPromos(){
+  var active = window.FB_SETTINGS ? !!window.FB_SETTINGS.freeShippingActive : false;
+  var over = window.FB_SETTINGS ? (window.FB_SETTINGS.freeShippingOver || 0) : 0;
+  document.getElementById('settingFreeShipActive').checked = active;
+  document.getElementById('settingFreeShipAmount').value = over;
+
   var promos=getPromoCodes();
   var empty=document.getElementById('promoEmpty');
   var grid=document.getElementById('promoGrid');
@@ -1104,6 +1125,20 @@ function renderPromos(){
       '</div>'+
     '</div>';
   }).join('');
+}
+
+function saveSettings() {
+  var active = document.getElementById('settingFreeShipActive').checked;
+  var amount = parseFloat(document.getElementById('settingFreeShipAmount').value) || 0;
+  
+  if (!window.FB_SETTINGS) window.FB_SETTINGS = {};
+  window.FB_SETTINGS.freeShippingActive = active;
+  window.FB_SETTINGS.freeShippingOver = amount;
+  
+  if (window.DB_REF) {
+    window.DB_REF.child('sc_settings').set(window.FB_SETTINGS);
+    showToast('✿ Settings saved automatically');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1317,7 +1352,8 @@ firebase.auth().onAuthStateChanged(function(user) {
       db.ref('sc_deleted_products').once('value').catch(function(e){return {val:function(){return null}};}),
       db.ref('sc_orders').orderByKey().limitToLast(150).once('value').catch(function(e){console.warn('Orders failed'); return {val:function(){return null}};}),
       db.ref('sc_stock').once('value').catch(function(e){return {val:function(){return null}};}),
-      db.ref('sc_promo_codes').once('value').catch(function(e){return {val:function(){return null}};})
+      db.ref('sc_promo_codes').once('value').catch(function(e){return {val:function(){return null}};}),
+      db.ref('sc_settings').once('value').catch(function(e){return {val:function(){return null}};})
     ]).then(function(snapshots) {
       var data = {
         sc_categories: snapshots[0].val(),
@@ -1325,7 +1361,8 @@ firebase.auth().onAuthStateChanged(function(user) {
         sc_deleted_products: snapshots[2].val(),
         sc_orders: snapshots[3].val(),
         sc_stock: snapshots[4].val(),
-        sc_promo_codes: snapshots[5].val()
+        sc_promo_codes: snapshots[5].val(),
+        sc_settings: snapshots[6].val()
       };
       function getArray(dataStr, fallback) {
         if (!dataStr) return fallback;
@@ -1354,8 +1391,12 @@ firebase.auth().onAuthStateChanged(function(user) {
       try { window.FB_STOCK = (typeof data.sc_stock === 'string') ? JSON.parse(data.sc_stock) : data.sc_stock; } catch(e) {}
       if (!window.FB_STOCK) window.FB_STOCK = {};
       
-      window.FB_PROMO_CODES = getArray(data.sc_promo_codes, []);
+      var promos = getArray(data.sc_promo_codes, []);
+      window.FB_PROMO_CODES = promos;
       
+      window.FB_SETTINGS = data.sc_settings || { freeShippingActive: false, freeShippingOver: 2000 };
+      
+      renderCategories();
       if (window.FB_DELETED_PRODUCTS.length > 0) {
         PRODUCTS = PRODUCTS.filter(function(p) { return !window.FB_DELETED_PRODUCTS.includes(p.id); });
       }

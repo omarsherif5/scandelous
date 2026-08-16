@@ -302,7 +302,7 @@ var currentPromo = null;
 
 function cartTotals() {
   var sub = cart.reduce(function(a,i) { return a + i.price * i.qty; }, 0);
-  var free = STORE_SETTINGS.freeShippingOver > 0 && sub >= STORE_SETTINGS.freeShippingOver;
+  var free = STORE_SETTINGS.freeShippingActive && sub >= STORE_SETTINGS.freeShippingOver;
   var ship = free ? 0 : STORE_SETTINGS.shippingFee;
   var discount = 0;
   
@@ -362,7 +362,7 @@ function updateCartUI() {
   var note = document.getElementById('shippingNote');
   if (t.freeShipping) {
     note.textContent = '✓ Free shipping applied!';
-  } else if (STORE_SETTINGS.freeShippingOver > 0) {
+  } else if (STORE_SETTINGS.freeShippingActive) {
     note.textContent = 'Add ' + fmt(STORE_SETTINGS.freeShippingOver - t.sub) + ' more for free shipping · Shipping: ' + fmt(t.ship);
   } else {
     note.textContent = 'Shipping: ' + fmt(t.ship);
@@ -989,6 +989,12 @@ const dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
       
       window.FB_PROMO_CODES = getArray(data.sc_promo_codes, []);
       
+      var settings = data.sc_settings;
+      if (settings) {
+        STORE_SETTINGS.freeShippingActive = !!settings.freeShippingActive;
+        STORE_SETTINGS.freeShippingOver = settings.freeShippingOver ? parseFloat(settings.freeShippingOver) : 0;
+      }
+      
       if (deletedProds.length > 0) {
         PRODUCTS = PRODUCTS.filter(function(p) { return !deletedProds.includes(p.id); });
       }
@@ -1014,14 +1020,16 @@ const dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
     db.ref('sc_custom_products_v2').once('value'),
     db.ref('sc_deleted_products').once('value'),
     db.ref('sc_stock').once('value'),
-    db.ref('sc_promo_codes').once('value')
+    db.ref('sc_promo_codes').once('value'),
+    db.ref('sc_settings').once('value')
   ]).then(function(snapshots) {
     var data = {
       sc_categories: snapshots[0].val(),
       sc_custom_products: snapshots[1].val(),
       sc_deleted_products: snapshots[2].val(),
       sc_stock: snapshots[3].val(),
-      sc_promo_codes: snapshots[4].val()
+      sc_promo_codes: snapshots[4].val(),
+      sc_settings: snapshots[5].val()
     };
     applyData(data);
   }).catch(function(err) {
