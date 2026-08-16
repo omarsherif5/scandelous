@@ -1427,38 +1427,76 @@ firebase.auth().onAuthStateChanged(function(user) {
     }
 
     // Try SDK first, fall back to REST if it fails
-    Promise.all([
-      db.ref('sc_categories').once('value').catch(function(e){console.warn('Cats failed'); return {val:function(){return null}};}),
-      db.ref('sc_custom_products_v2').once('value').catch(function(e){console.warn('Prods failed'); return {val:function(){return null}};}),
-      db.ref('sc_deleted_products').once('value').catch(function(e){return {val:function(){return null}};}),
-      db.ref('sc_orders').orderByKey().limitToLast(150).once('value').catch(function(e){console.warn('Orders failed'); return {val:function(){return null}};}),
-      db.ref('sc_stock').once('value').catch(function(e){return {val:function(){return null}};}),
-      db.ref('sc_promo_codes').once('value').catch(function(e){return {val:function(){return null}};}),
-      db.ref('sc_settings').once('value').catch(function(e){return {val:function(){return null}};})
-    ]).then(function(snapshots) {
-      var data = {
-        sc_categories: snapshots[0].val(),
-        sc_custom_products: snapshots[1].val(),
-        sc_deleted_products: snapshots[2].val(),
-        sc_orders: snapshots[3].val(),
-        sc_stock: snapshots[4].val(),
-        sc_promo_codes: snapshots[5].val(),
-        sc_settings: snapshots[6].val()
-      };
+    function loadViaSDK() {
+      return Promise.all([
+        db.ref('sc_categories').once('value'),
+        db.ref('sc_custom_products_v2').once('value'),
+        db.ref('sc_deleted_products').once('value'),
+        db.ref('sc_orders').orderByKey().limitToLast(150).once('value'),
+        db.ref('sc_stock').once('value'),
+        db.ref('sc_promo_codes').once('value'),
+        db.ref('sc_settings').once('value')
+      ]).then(function(snapshots) {
+        return {
+          sc_categories: snapshots[0].val(),
+          sc_custom_products: snapshots[1].val(),
+          sc_deleted_products: snapshots[2].val(),
+          sc_orders: snapshots[3].val(),
+          sc_stock: snapshots[4].val(),
+          sc_promo_codes: snapshots[5].val(),
+          sc_settings: snapshots[6].val()
+        };
+      });
+    }
+
+    // Set a timeout: if SDK doesn't respond in 6 seconds, use REST
+    var adminLoaded = false;
+
+    // SDK attempt
+    loadViaSDK().then(function(data) {
+      if (adminLoaded) return;
+      adminLoaded = true;
       applyAdminData(data);
     }).catch(function(err) {
-      console.warn("SDK failed, trying REST...", err);
-      var token = user.getIdToken ? user.getIdToken().then(function(t){return t}).catch(function(){return null}) : Promise.resolve(null);
-      token.then(function(authToken) {
-        loadAdminViaREST(authToken).then(function(data) {
-          applyAdminData(data);
-        }).catch(function(err2) {
-          console.error("REST also failed", err2);
-          renderOrders();
-          renderProducts();
-        });
+      console.warn("SDK failed", err);
+    });
+
+    // REST attempt (fires in parallel, uses auth token for protected nodes like orders)
+    user.getIdToken().then(function(authToken) {
+      loadAdminViaREST(authToken).then(function(data) {
+        if (adminLoaded) return;
+        adminLoaded = true;
+        applyAdminData(data);
+      }).catch(function(err2) {
+        console.error("REST also failed", err2);
+      });
+    }).catch(function() {
+      // No token available, try REST without auth
+      loadAdminViaREST(null).then(function(data) {
+        if (adminLoaded) return;
+        adminLoaded = true;
+        applyAdminData(data);
+      }).catch(function(err3) {
+        console.error("All methods failed", err3);
+        if (!adminLoaded) { renderOrders(); renderProducts(); }
       });
     });
+
+    // Safety net
+    setTimeout(function() {
+      if (!adminLoaded) {
+        console.warn("Admin load timeout - using REST forcefully");
+        user.getIdToken().then(function(authToken) {
+          loadAdminViaREST(authToken).then(function(data) {
+            if (adminLoaded) return;
+            adminLoaded = true;
+            applyAdminData(data);
+          });
+        }).catch(function() {
+          if (!adminLoaded) { renderOrders(); renderProducts(); }
+        });
+      }
+    }, 8000);
   } else {
     // User is signed out
     var overlay = document.getElementById('loginOverlay');
