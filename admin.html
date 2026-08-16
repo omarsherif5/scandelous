@@ -1402,7 +1402,9 @@ firebase.auth().onAuthStateChanged(function(user) {
       var authParamWithAnd = authToken ? '&auth=' + authToken : '';
       
       function fetchNode(name) {
-        return fetch(dbUrl + '/' + name + '.json' + authParam)
+        var sep = authParam ? '&' : '?';
+        var cacheBust = sep + '_t=' + new Date().getTime();
+        return fetch(dbUrl + '/' + name + '.json' + authParam + cacheBust)
           .then(function(r) { 
             if (!r.ok) throw new Error(name + ' REST error: ' + r.status);
             return r.json(); 
@@ -1413,7 +1415,7 @@ firebase.auth().onAuthStateChanged(function(user) {
         fetchNode('sc_categories'),
         fetchNode('sc_custom_products_v2'),
         fetchNode('sc_deleted_products'),
-        fetch(dbUrl + '/sc_orders.json?orderBy="$key"&limitToLast=150' + authParamWithAnd)
+        fetch(dbUrl + '/sc_orders.json?orderBy="$key"&limitToLast=150' + authParamWithAnd + '&_t=' + new Date().getTime())
           .then(function(r) { 
             if (!r.ok) throw new Error('sc_orders REST error: ' + r.status);
             return r.json(); 
