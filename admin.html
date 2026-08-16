@@ -1346,36 +1346,21 @@ firebase.auth().onAuthStateChanged(function(user) {
     overlay.style.opacity = '0';
     setTimeout(function(){ overlay.style.display = 'none'; }, 400);
     
-    Promise.all([
-      db.ref('sc_categories').once('value').catch(function(e){console.warn('Cats failed'); return {val:function(){return null}};}),
-      db.ref('sc_custom_products_v2').once('value').catch(function(e){console.warn('Prods failed'); return {val:function(){return null}};}),
-      db.ref('sc_deleted_products').once('value').catch(function(e){return {val:function(){return null}};}),
-      db.ref('sc_orders').orderByKey().limitToLast(150).once('value').catch(function(e){console.warn('Orders failed'); return {val:function(){return null}};}),
-      db.ref('sc_stock').once('value').catch(function(e){return {val:function(){return null}};}),
-      db.ref('sc_promo_codes').once('value').catch(function(e){return {val:function(){return null}};}),
-      db.ref('sc_settings').once('value').catch(function(e){return {val:function(){return null}};})
-    ]).then(function(snapshots) {
-      var data = {
-        sc_categories: snapshots[0].val(),
-        sc_custom_products: snapshots[1].val(),
-        sc_deleted_products: snapshots[2].val(),
-        sc_orders: snapshots[3].val(),
-        sc_stock: snapshots[4].val(),
-        sc_promo_codes: snapshots[5].val(),
-        sc_settings: snapshots[6].val()
-      };
-      function getArray(dataStr, fallback) {
-        if (!dataStr) return fallback;
-        try {
-           var parsed = (typeof dataStr === 'string') ? JSON.parse(dataStr) : dataStr;
-           if (Array.isArray(parsed)) return parsed;
-           if (typeof parsed === 'object') return Object.keys(parsed).map(function(k){return parsed[k]});
-           return fallback;
-        } catch(e) {
-           return fallback;
-        }
+    var dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
+    
+    function getArray(dataStr, fallback) {
+      if (!dataStr) return fallback;
+      try {
+         var parsed = (typeof dataStr === 'string') ? JSON.parse(dataStr) : dataStr;
+         if (Array.isArray(parsed)) return parsed;
+         if (typeof parsed === 'object') return Object.keys(parsed).map(function(k){return parsed[k]});
+         return fallback;
+      } catch(e) {
+         return fallback;
       }
+    }
 
+    function applyAdminData(data) {
       window.FB_CATEGORIES = getArray(data.sc_categories, [
         {id: 'resin', name: 'Resin'},
         {id: 'candles', name: 'Candles'},
@@ -1397,6 +1382,8 @@ firebase.auth().onAuthStateChanged(function(user) {
       window.FB_SETTINGS = data.sc_settings || { freeShippingActive: false, freeShippingOver: 2000 };
       
       renderCategories();
+      if (!window.BASE_PRODS) window.BASE_PRODS = JSON.parse(JSON.stringify(PRODUCTS));
+      PRODUCTS = JSON.parse(JSON.stringify(window.BASE_PRODS));
       if (window.FB_DELETED_PRODUCTS.length > 0) {
         PRODUCTS = PRODUCTS.filter(function(p) { return !window.FB_DELETED_PRODUCTS.includes(p.id); });
       }
@@ -1408,9 +1395,69 @@ firebase.auth().onAuthStateChanged(function(user) {
       
       renderOrders();
       renderProducts();
+    }
+
+    function loadAdminViaREST(authToken) {
+      var headers = authToken ? { 'Authorization': 'Bearer ' + authToken } : {};
+      function fetchNode(name) {
+        return fetch(dbUrl + '/' + name + '.json', { headers: headers })
+          .then(function(r) { return r.json(); })
+          .catch(function() { return null; });
+      }
+      return Promise.all([
+        fetchNode('sc_categories'),
+        fetchNode('sc_custom_products_v2'),
+        fetchNode('sc_deleted_products'),
+        fetch(dbUrl + '/sc_orders.json?orderBy="$key"&limitToLast=150', { headers: headers })
+          .then(function(r) { return r.json(); }).catch(function() { return null; }),
+        fetchNode('sc_stock'),
+        fetchNode('sc_promo_codes'),
+        fetchNode('sc_settings')
+      ]).then(function(results) {
+        return {
+          sc_categories: results[0],
+          sc_custom_products: results[1],
+          sc_deleted_products: results[2],
+          sc_orders: results[3],
+          sc_stock: results[4],
+          sc_promo_codes: results[5],
+          sc_settings: results[6]
+        };
+      });
+    }
+
+    // Try SDK first, fall back to REST if it fails
+    Promise.all([
+      db.ref('sc_categories').once('value').catch(function(e){console.warn('Cats failed'); return {val:function(){return null}};}),
+      db.ref('sc_custom_products_v2').once('value').catch(function(e){console.warn('Prods failed'); return {val:function(){return null}};}),
+      db.ref('sc_deleted_products').once('value').catch(function(e){return {val:function(){return null}};}),
+      db.ref('sc_orders').orderByKey().limitToLast(150).once('value').catch(function(e){console.warn('Orders failed'); return {val:function(){return null}};}),
+      db.ref('sc_stock').once('value').catch(function(e){return {val:function(){return null}};}),
+      db.ref('sc_promo_codes').once('value').catch(function(e){return {val:function(){return null}};}),
+      db.ref('sc_settings').once('value').catch(function(e){return {val:function(){return null}};})
+    ]).then(function(snapshots) {
+      var data = {
+        sc_categories: snapshots[0].val(),
+        sc_custom_products: snapshots[1].val(),
+        sc_deleted_products: snapshots[2].val(),
+        sc_orders: snapshots[3].val(),
+        sc_stock: snapshots[4].val(),
+        sc_promo_codes: snapshots[5].val(),
+        sc_settings: snapshots[6].val()
+      };
+      applyAdminData(data);
     }).catch(function(err) {
-      console.error("Firebase error", err);
-      renderOrders();
+      console.warn("SDK failed, trying REST...", err);
+      var token = user.getIdToken ? user.getIdToken().then(function(t){return t}).catch(function(){return null}) : Promise.resolve(null);
+      token.then(function(authToken) {
+        loadAdminViaREST(authToken).then(function(data) {
+          applyAdminData(data);
+        }).catch(function(err2) {
+          console.error("REST also failed", err2);
+          renderOrders();
+          renderProducts();
+        });
+      });
     });
   } else {
     // User is signed out
