@@ -1398,18 +1398,26 @@ firebase.auth().onAuthStateChanged(function(user) {
     }
 
     function loadAdminViaREST(authToken) {
-      var headers = authToken ? { 'Authorization': 'Bearer ' + authToken } : {};
+      var authParam = authToken ? '?auth=' + authToken : '';
+      var authParamWithAnd = authToken ? '&auth=' + authToken : '';
+      
       function fetchNode(name) {
-        return fetch(dbUrl + '/' + name + '.json', { headers: headers })
-          .then(function(r) { return r.json(); })
+        return fetch(dbUrl + '/' + name + '.json' + authParam)
+          .then(function(r) { 
+            if (!r.ok) throw new Error(name + ' REST error: ' + r.status);
+            return r.json(); 
+          })
           .catch(function() { return null; });
       }
       return Promise.all([
         fetchNode('sc_categories'),
         fetchNode('sc_custom_products_v2'),
         fetchNode('sc_deleted_products'),
-        fetch(dbUrl + '/sc_orders.json?orderBy="$key"&limitToLast=150', { headers: headers })
-          .then(function(r) { return r.json(); }).catch(function() { return null; }),
+        fetch(dbUrl + '/sc_orders.json?orderBy="$key"&limitToLast=150' + authParamWithAnd)
+          .then(function(r) { 
+            if (!r.ok) throw new Error('sc_orders REST error: ' + r.status);
+            return r.json(); 
+          }).catch(function() { return null; }),
         fetchNode('sc_stock'),
         fetchNode('sc_promo_codes'),
         fetchNode('sc_settings')
