@@ -1382,7 +1382,7 @@ firebase.auth().onAuthStateChanged(function(user) {
       
       window.FB_SETTINGS = settings || { freeShippingActive: false, freeShippingOver: 2000 };
       
-      renderCategories();
+      renderCategoryList();
       if (!window.BASE_PRODS) window.BASE_PRODS = JSON.parse(JSON.stringify(PRODUCTS));
       PRODUCTS = JSON.parse(JSON.stringify(window.BASE_PRODS));
       if (window.FB_DELETED_PRODUCTS.length > 0) {
