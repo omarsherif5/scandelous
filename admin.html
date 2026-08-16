@@ -1348,20 +1348,22 @@ firebase.auth().onAuthStateChanged(function(user) {
     
     var dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
     
-    function getArray(dataStr, fallback) {
-      if (!dataStr) return fallback;
+    function getArray(val, fallback) {
+      if (!val) return fallback;
       try {
-         var parsed = (typeof dataStr === 'string') ? JSON.parse(dataStr) : dataStr;
+         var parsed = (typeof val === 'string') ? JSON.parse(val) : val;
          if (Array.isArray(parsed)) return parsed;
-         if (typeof parsed === 'object') return Object.keys(parsed).map(function(k){return parsed[k]});
+         if (typeof parsed === 'object' && parsed !== null) return Object.keys(parsed).map(function(k){ return parsed[k]; });
          return fallback;
       } catch(e) {
          return fallback;
       }
     }
 
-    function applyAdminData(data) {
-      window.FB_CATEGORIES = getArray(data.sc_categories, [
+    function applyAdminData(cats, prods, deleted, orders, stock, promos, settings) {
+      console.log('[Admin] Applying data - cats:', !!cats, 'prods:', !!prods, 'orders:', !!orders);
+      
+      window.FB_CATEGORIES = getArray(cats, [
         {id: 'resin', name: 'Resin'},
         {id: 'candles', name: 'Candles'},
         {id: 'gypsum', name: 'Gypsum'},
@@ -1369,17 +1371,16 @@ firebase.auth().onAuthStateChanged(function(user) {
       ]);
       renderCategoryDropdown();
 
-      window.FB_CUSTOM_PRODUCTS = getArray(data.sc_custom_products, []);
-      window.FB_DELETED_PRODUCTS = getArray(data.sc_deleted_products, []);
-      window.FB_ORDERS = getArray(data.sc_orders, []);
+      window.FB_CUSTOM_PRODUCTS = getArray(prods, []);
+      window.FB_DELETED_PRODUCTS = getArray(deleted, []);
+      window.FB_ORDERS = getArray(orders, []);
       
-      try { window.FB_STOCK = (typeof data.sc_stock === 'string') ? JSON.parse(data.sc_stock) : data.sc_stock; } catch(e) {}
+      try { window.FB_STOCK = (typeof stock === 'string') ? JSON.parse(stock) : (stock || {}); } catch(e) { window.FB_STOCK = {}; }
       if (!window.FB_STOCK) window.FB_STOCK = {};
       
-      var promos = getArray(data.sc_promo_codes, []);
-      window.FB_PROMO_CODES = promos;
+      window.FB_PROMO_CODES = getArray(promos, []);
       
-      window.FB_SETTINGS = data.sc_settings || { freeShippingActive: false, freeShippingOver: 2000 };
+      window.FB_SETTINGS = settings || { freeShippingActive: false, freeShippingOver: 2000 };
       
       renderCategories();
       if (!window.BASE_PRODS) window.BASE_PRODS = JSON.parse(JSON.stringify(PRODUCTS));
@@ -1393,120 +1394,53 @@ firebase.auth().onAuthStateChanged(function(user) {
         PRODUCTS = PRODUCTS.concat(window.FB_CUSTOM_PRODUCTS);
       }
       
+      console.log('[Admin] Final PRODUCTS count:', PRODUCTS.length, 'Orders count:', window.FB_ORDERS.length);
       renderOrders();
       renderProducts();
     }
 
-    function loadAdminViaREST(authToken) {
-      var authParam = authToken ? '?auth=' + authToken : '';
-      var authParamWithAnd = authToken ? '&auth=' + authToken : '';
+    // Simple REST-only loading (same approach as index.html which works)
+    user.getIdToken().then(function(token) {
+      console.log('[Admin] Got auth token, fetching data via REST...');
+      var t = Date.now();
       
       function fetchNode(name) {
-        var sep = authParam ? '&' : '?';
-        var cacheBust = sep + '_t=' + new Date().getTime();
-        return fetch(dbUrl + '/' + name + '.json' + authParam + cacheBust)
-          .then(function(r) { 
-            if (!r.ok) throw new Error(name + ' REST error: ' + r.status);
-            return r.json(); 
+        return fetch(dbUrl + '/' + name + '.json?auth=' + token + '&_t=' + t)
+          .then(function(r) {
+            console.log('[Admin] ' + name + ' HTTP ' + r.status);
+            if (!r.ok) return null;
+            return r.json();
           })
-          .catch(function() { return null; });
+          .catch(function(err) {
+            console.error('[Admin] ' + name + ' fetch error:', err);
+            return null;
+          });
       }
-      return Promise.all([
+
+      Promise.all([
         fetchNode('sc_categories'),
         fetchNode('sc_custom_products_v2'),
         fetchNode('sc_deleted_products'),
-        fetch(dbUrl + '/sc_orders.json?orderBy="$key"&limitToLast=150' + authParamWithAnd + '&_t=' + new Date().getTime())
-          .then(function(r) { 
-            if (!r.ok) throw new Error('sc_orders REST error: ' + r.status);
-            return r.json(); 
-          }).catch(function() { return null; }),
+        fetch(dbUrl + '/sc_orders.json?auth=' + token + '&orderBy="$key"&limitToLast=150&_t=' + t)
+          .then(function(r) { console.log('[Admin] sc_orders HTTP ' + r.status); return r.ok ? r.json() : null; })
+          .catch(function() { return null; }),
         fetchNode('sc_stock'),
         fetchNode('sc_promo_codes'),
         fetchNode('sc_settings')
       ]).then(function(results) {
-        return {
-          sc_categories: results[0],
-          sc_custom_products: results[1],
-          sc_deleted_products: results[2],
-          sc_orders: results[3],
-          sc_stock: results[4],
-          sc_promo_codes: results[5],
-          sc_settings: results[6]
-        };
+        console.log('[Admin] All fetches complete');
+        applyAdminData(results[0], results[1], results[2], results[3], results[4], results[5], results[6]);
+      }).catch(function(err) {
+        console.error('[Admin] Promise.all failed:', err);
+        renderOrders();
+        renderProducts();
       });
-    }
-
-    // Try SDK first, fall back to REST if it fails
-    function loadViaSDK() {
-      return Promise.all([
-        db.ref('sc_categories').once('value'),
-        db.ref('sc_custom_products_v2').once('value'),
-        db.ref('sc_deleted_products').once('value'),
-        db.ref('sc_orders').orderByKey().limitToLast(150).once('value'),
-        db.ref('sc_stock').once('value'),
-        db.ref('sc_promo_codes').once('value'),
-        db.ref('sc_settings').once('value')
-      ]).then(function(snapshots) {
-        return {
-          sc_categories: snapshots[0].val(),
-          sc_custom_products: snapshots[1].val(),
-          sc_deleted_products: snapshots[2].val(),
-          sc_orders: snapshots[3].val(),
-          sc_stock: snapshots[4].val(),
-          sc_promo_codes: snapshots[5].val(),
-          sc_settings: snapshots[6].val()
-        };
-      });
-    }
-
-    // Set a timeout: if SDK doesn't respond in 6 seconds, use REST
-    var adminLoaded = false;
-
-    // SDK attempt
-    loadViaSDK().then(function(data) {
-      if (adminLoaded) return;
-      adminLoaded = true;
-      applyAdminData(data);
     }).catch(function(err) {
-      console.warn("SDK failed", err);
+      console.error('[Admin] getIdToken failed:', err);
+      renderOrders();
+      renderProducts();
     });
 
-    // REST attempt (fires in parallel, uses auth token for protected nodes like orders)
-    user.getIdToken().then(function(authToken) {
-      loadAdminViaREST(authToken).then(function(data) {
-        if (adminLoaded) return;
-        adminLoaded = true;
-        applyAdminData(data);
-      }).catch(function(err2) {
-        console.error("REST also failed", err2);
-      });
-    }).catch(function() {
-      // No token available, try REST without auth
-      loadAdminViaREST(null).then(function(data) {
-        if (adminLoaded) return;
-        adminLoaded = true;
-        applyAdminData(data);
-      }).catch(function(err3) {
-        console.error("All methods failed", err3);
-        if (!adminLoaded) { renderOrders(); renderProducts(); }
-      });
-    });
-
-    // Safety net
-    setTimeout(function() {
-      if (!adminLoaded) {
-        console.warn("Admin load timeout - using REST forcefully");
-        user.getIdToken().then(function(authToken) {
-          loadAdminViaREST(authToken).then(function(data) {
-            if (adminLoaded) return;
-            adminLoaded = true;
-            applyAdminData(data);
-          });
-        }).catch(function() {
-          if (!adminLoaded) { renderOrders(); renderProducts(); }
-        });
-      }
-    }, 8000);
   } else {
     // User is signed out
     var overlay = document.getElementById('loginOverlay');
