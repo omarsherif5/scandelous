@@ -713,31 +713,59 @@ function clearProductForm(){
 function handleImageFile(e){
   var files=Array.from(e.target.files||[]);
   if(!files.length)return;
-  showToast('✿ Uploading images to Cloudinary... Please wait.');
+  showToast('✿ Uploading image... Please wait.');
   files.forEach(function(file){
     if(!file.type.startsWith('image/')){showToast('⚠️ Skipped non-image file');return}
     if(file.size>15*1024*1024){showToast('⚠️ Skipped image over 15MB');return}
     
-    var formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', 'scandelous_uploads');
+    // Check if Cloudflare is configured (placeholders to be filled later)
+    var cfWorkerUrl = "REPLACE_ME_WORKER_URL";
+    var cfToken = "REPLACE_ME_UPLOAD_TOKEN";
+    var cfPublicUrl = "REPLACE_ME_PUBLIC_URL";
+    
+    if (cfWorkerUrl !== "REPLACE_ME_WORKER_URL") {
+      // Cloudflare R2 Upload
+      fetch(cfWorkerUrl, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + cfToken },
+        body: file // Send the file directly as the body
+      }).then(function(res) { return res.json(); }).then(function(data) {
+        if (data.success && data.filename) {
+          var finalUrl = cfPublicUrl + '/' + data.filename;
+          currentImagesData.push(finalUrl);
+          showPreview();
+          document.getElementById('pmImageUrl').value='';
+          showToast('✿ Image uploaded successfully!');
+        } else {
+          showToast('⚠️ Failed to upload image');
+        }
+      }).catch(function(err) {
+        showToast('⚠️ Cloudflare error');
+        console.error(err);
+      });
+    } else {
+      // Fallback/Legacy Cloudinary
+      var formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', 'scandelous_uploads');
 
-    fetch('https://api.cloudinary.com/v1_1/ojz1hsbu/image/upload', {
-      method: 'POST',
-      body: formData
-    }).then(function(res) { return res.json(); }).then(function(data) {
-      if (data.secure_url) {
-        currentImagesData.push(data.secure_url);
-        showPreview();
-        document.getElementById('pmImageUrl').value='';
-        showToast('✿ Image uploaded successfully!');
-      } else {
-        showToast('⚠️ Failed to upload image');
-      }
-    }).catch(function(err) {
-      showToast('⚠️ Cloudinary error');
-      console.error(err);
-    });
+      fetch('https://api.cloudinary.com/v1_1/ojz1hsbu/image/upload', {
+        method: 'POST',
+        body: formData
+      }).then(function(res) { return res.json(); }).then(function(data) {
+        if (data.secure_url) {
+          currentImagesData.push(data.secure_url);
+          showPreview();
+          document.getElementById('pmImageUrl').value='';
+          showToast('✿ Image uploaded successfully!');
+        } else {
+          showToast('⚠️ Failed to upload image');
+        }
+      }).catch(function(err) {
+        showToast('⚠️ Cloudinary error');
+        console.error(err);
+      });
+    }
   });
 }
 function handleImageUrl(){if(document.getElementById('pmImageUrl').value.trim()){currentImagesData=[];removeImage()}}
