@@ -713,26 +713,30 @@ function clearProductForm(){
 function handleImageFile(e){
   var files=Array.from(e.target.files||[]);
   if(!files.length)return;
-  showToast('✿ Uploading image to Firebase... Please wait.');
+  showToast('✿ Uploading image to ImgBB... Please wait.');
   files.forEach(function(file){
     if(!file.type.startsWith('image/')){showToast('⚠️ Skipped non-image file');return}
     if(file.size>15*1024*1024){showToast('⚠️ Skipped image over 15MB');return}
     
-    var storageRef = firebase.storage().ref();
-    // Create a unique filename for the image
-    var uniqueName = 'products/' + Date.now() + '_' + Math.random().toString(36).substr(2, 9) + '_' + file.name;
-    var imageRef = storageRef.child(uniqueName);
-
-    imageRef.put(file).then(function(snapshot) {
-      return snapshot.ref.getDownloadURL();
-    }).then(function(downloadURL) {
-      currentImagesData.push(downloadURL);
-      showPreview();
-      document.getElementById('pmImageUrl').value = '';
-      showToast('✿ Image uploaded successfully!');
-    }).catch(function(error) {
-      console.error('Firebase Storage upload failed:', error);
-      showToast('⚠️ Failed to upload image to Firebase');
+    var formData = new FormData();
+    formData.append('image', file);
+    
+    fetch('https://api.imgbb.com/1/upload?key=f20f39815596b16e664a477af2c10f23', {
+      method: 'POST',
+      body: formData
+    }).then(function(res) { return res.json(); }).then(function(data) {
+      if (data.success && data.data && data.data.url) {
+        currentImagesData.push(data.data.url);
+        showPreview();
+        document.getElementById('pmImageUrl').value='';
+        showToast('✿ Image uploaded successfully!');
+      } else {
+        showToast('⚠️ Failed to upload image');
+        console.error(data);
+      }
+    }).catch(function(err) {
+      showToast('⚠️ ImgBB upload error');
+      console.error(err);
     });
   });
 }
