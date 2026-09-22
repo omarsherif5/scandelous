@@ -713,29 +713,35 @@ function clearProductForm(){
 function handleImageFile(e){
   var files=Array.from(e.target.files||[]);
   if(!files.length)return;
-  showToast('✿ Uploading image to ImgBB... Please wait.');
+  showToast('✿ Uploading image... Please wait.');
+  var SUPABASE_URL = 'https://ubsonyrkxrkioorkdtku.supabase.co';
+  var SUPABASE_KEY = 'sb_publishable_sTGDSVoefVLNCJShUBO8vQ_Mdq-lC9j';
   files.forEach(function(file){
     if(!file.type.startsWith('image/')){showToast('⚠️ Skipped non-image file');return}
     if(file.size>15*1024*1024){showToast('⚠️ Skipped image over 15MB');return}
     
-    var formData = new FormData();
-    formData.append('image', file);
+    var ext = file.name.split('.').pop() || 'jpg';
+    var uniqueName = Date.now() + '_' + Math.random().toString(36).substr(2,9) + '.' + ext;
     
-    fetch('https://api.imgbb.com/1/upload?key=f20f39815596b16e664a477af2c10f23', {
+    fetch(SUPABASE_URL + '/storage/v1/object/product-images/' + uniqueName, {
       method: 'POST',
-      body: formData
-    }).then(function(res) { return res.json(); }).then(function(data) {
-      if (data.success && data.data && data.data.url) {
-        currentImagesData.push(data.data.url);
-        showPreview();
-        document.getElementById('pmImageUrl').value='';
-        showToast('✿ Image uploaded successfully!');
-      } else {
-        showToast('⚠️ Failed to upload image');
-        console.error(data);
-      }
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': file.type
+      },
+      body: file
+    }).then(function(res) {
+      if (!res.ok) throw new Error('Upload failed: ' + res.status);
+      return res.json();
+    }).then(function(data) {
+      var publicUrl = SUPABASE_URL + '/storage/v1/object/public/product-images/' + uniqueName;
+      currentImagesData.push(publicUrl);
+      showPreview();
+      document.getElementById('pmImageUrl').value='';
+      showToast('✿ Image uploaded successfully!');
     }).catch(function(err) {
-      showToast('⚠️ ImgBB upload error');
+      showToast('⚠️ Upload error: ' + err.message);
       console.error(err);
     });
   });
