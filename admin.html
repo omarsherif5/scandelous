@@ -18,7 +18,7 @@
     <div class="login-sub">Admin Access Only</div>
     <div class="login-field">
       <input type="password" id="loginPwd" class="login-input" placeholder="Enter Password" onkeypress="if(event.key==='Enter')checkLogin()"/>
-      <button class="login-btn" onclick="checkLogin()">Enter Dashboard</button>
+      <button disabled class="login-btn" onclick="checkLogin()">Enter Dashboard</button>
     </div>
     <div class="login-error" id="loginError">Incorrect password</div>
   </div>
@@ -253,8 +253,9 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+
 <script src="products.js"></script>
+<script src="store-connection.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════
 //  UTILITIES
@@ -349,18 +350,37 @@ function updateOrderStatus(orderNum,newStatus){
   showToast('✿ Order #'+orderNum+' → '+newStatus.charAt(0).toUpperCase()+newStatus.slice(1));
 }
 
+function escapeHtml(str){
+  if(str===undefined||str===null)return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
 function renderOrders(){
-  var orders=getOrders().reverse();
+  var orders=getOrders().slice().reverse();
   renderStats(orders);
   
-  var search = (document.getElementById('orderSearch') ? document.getElementById('orderSearch').value.toLowerCase() : '');
+  var search = (document.getElementById('orderSearch') ? document.getElementById('orderSearch').value.toLowerCase().trim() : '');
   if (search) {
     orders = orders.filter(function(o) {
-      return (o.orderNum && o.orderNum.toLowerCase().includes(search)) ||
-             (o.customer.firstName && o.customer.firstName.toLowerCase().includes(search)) ||
-             (o.customer.lastName && o.customer.lastName.toLowerCase().includes(search)) ||
-             (o.customer.email && o.customer.email.toLowerCase().includes(search)) ||
-             (o.customer.phone && o.customer.phone.toLowerCase().includes(search));
+      var matchCustomer = (o.orderNum && o.orderNum.toLowerCase().includes(search)) ||
+             (o.customer && o.customer.firstName && o.customer.firstName.toLowerCase().includes(search)) ||
+             (o.customer && o.customer.lastName && o.customer.lastName.toLowerCase().includes(search)) ||
+             (o.customer && o.customer.email && o.customer.email.toLowerCase().includes(search)) ||
+             (o.customer && o.customer.phone && o.customer.phone.toLowerCase().includes(search)) ||
+             (o.customer && o.customer.city && o.customer.city.toLowerCase().includes(search)) ||
+             (o.customer && o.customer.notes && o.customer.notes.toLowerCase().includes(search));
+      var matchItems = o.items && o.items.some(function(i) {
+        return (i.name && i.name.toLowerCase().includes(search)) ||
+               (i.color && i.color.toLowerCase().includes(search)) ||
+               (i.pricingOption && i.pricingOption.toLowerCase().includes(search)) ||
+               (i.letter && i.letter.toLowerCase().includes(search));
+      });
+      return matchCustomer || matchItems;
     });
   }
 
@@ -375,20 +395,47 @@ function renderOrders(){
     var dateStr=d.toLocaleDateString('en-EG',{day:'numeric',month:'short',year:'numeric'});
     var timeStr=d.toLocaleTimeString('en-EG',{hour:'2-digit',minute:'2-digit'});
     var st=o.status||'received';
+    var custName = ((o.customer && o.customer.firstName) || '') + ' ' + ((o.customer && o.customer.lastName) || '');
+    var custEmail = (o.customer && o.customer.email) || '';
+    var custPhone = (o.customer && o.customer.phone) || '';
+    var custStreet = (o.customer && o.customer.street) || '';
+    var custApt = (o.customer && o.customer.apt) ? ', ' + o.customer.apt : '';
+    var custCity = (o.customer && o.customer.city) || '';
+    var custGov = (o.customer && o.customer.gov) ? ', ' + o.customer.gov : '';
+    var custNotes = (o.customer && o.customer.notes) || '';
+
+    // Render compact items list for the main table row
+    var itemsListHtml = (o.items || []).map(function(i){
+      var badges = [];
+      if (i.color) {
+        badges.push('<span class="order-item-badge color-badge" title="Color / Scent / Variant">🎨 ' + escapeHtml(i.color) + '</span>');
+      }
+      if (i.pricingOption) {
+        badges.push('<span class="order-item-badge option-badge" title="Selected Option / Size">📏 ' + escapeHtml(i.pricingOption) + '</span>');
+      }
+      if (i.letter) {
+        badges.push('<span class="order-item-badge letter-badge" title="Custom Initial">🔤 ' + escapeHtml(i.letter) + '</span>');
+      }
+      return '<div class="order-item-row">' +
+        '<div class="order-item-title"><strong>' + escapeHtml(i.name) + '</strong> <span class="order-item-qty">×' + i.qty + '</span></div>' +
+        (badges.length ? '<div class="order-item-badges">' + badges.join('') + '</div>' : '') +
+      '</div>';
+    }).join('');
+
     return '<tr>'+
-      '<td><div class="order-num">#'+o.orderNum+'</div></td>'+
+      '<td><div class="order-num">#'+escapeHtml(o.orderNum)+'</div></td>'+
       '<td style="font-size:.82rem;color:var(--text-light)">'+dateStr+'<br/><span style="font-size:.74rem;opacity:.7">'+timeStr+'</span></td>'+
-      '<td style="font-size:.86rem">'+o.customer.firstName+' '+o.customer.lastName+'<br/><span style="font-size:.76rem;color:var(--text-light)">'+o.customer.email+'</span></td>'+
-      '<td><div class="order-items-list">'+o.items.map(function(i){return i.name+(i.letter?' ('+i.letter+')':'')+' ×'+i.qty}).join('<br/>')+'</div></td>'+
+      '<td style="font-size:.86rem">'+escapeHtml(custName)+'<br/><span style="font-size:.76rem;color:var(--text-light)">'+escapeHtml(custEmail)+'</span></td>'+
+      '<td><div class="order-items-list">'+itemsListHtml+'</div></td>'+
       '<td style="font-weight:500">'+fmt(o.total)+(o.discount?'<br/><span style="font-size:.7rem;color:var(--green)">-'+fmt(o.discount)+' discount</span>':'')+'</td>'+
-      '<td><select class="status-select" onchange="updateOrderStatus(\''+o.orderNum+'\',this.value)">'+
+      '<td><select class="status-select" onchange="updateOrderStatus(\''+escapeHtml(o.orderNum)+'\',this.value)">'+
         ['received','processing','shipped','delivered','cancelled'].map(function(s){
           return '<option value="'+s+'"'+(st===s?' selected':'')+'>'+s.charAt(0).toUpperCase()+s.slice(1)+'</option>';
         }).join('')+
       '</select></td>'+
       '<td>'+
-        '<button class="expand-btn" onclick="toggleDetail(\'d-'+o.orderNum+'\')">Details</button>'+
-        '<select class="expand-btn" style="margin-left:6px;background:#25D366;color:#fff;border-color:#25D366;padding:4px 6px;width:auto;cursor:pointer" onchange="if(this.value){ adminWhatsApp(\''+o.orderNum+'\', this.value); this.value=\'\'; }">'+
+        '<button class="expand-btn" onclick="toggleDetail(\'d-'+escapeHtml(o.orderNum)+'\')">Details</button>'+
+        '<select class="expand-btn" style="margin-left:6px;background:#25D366;color:#fff;border-color:#25D366;padding:4px 6px;width:auto;cursor:pointer" onchange="if(this.value){ adminWhatsApp(\''+escapeHtml(o.orderNum)+'\', this.value); this.value=\'\'; }">'+
           '<option value="">💬 Message...</option>'+
           '<option value="confirm">Confirm Order</option>'+
           '<option value="shipping">Confirm Shipping</option>'+
@@ -397,16 +444,51 @@ function renderOrders(){
         '</select>'+
       '</td>'+
     '</tr>'+
-    '<tr class="order-detail-row" id="d-'+o.orderNum+'"><td colspan="7">'+
+    '<tr class="order-detail-row" id="d-'+escapeHtml(o.orderNum)+'"><td colspan="7">'+
       '<div class="detail-grid">'+
-        '<div class="detail-section"><h4>Customer Info</h4><p><strong>'+o.customer.firstName+' '+o.customer.lastName+'</strong><br/>'+o.customer.email+'<br/>'+o.customer.phone+'</p></div>'+
-        '<div class="detail-section"><h4>Shipping Address</h4><p>'+o.customer.street+(o.customer.apt?', '+o.customer.apt:'')+'<br/>'+o.customer.city+(o.customer.gov?', '+o.customer.gov:'')+'</p></div>'+
-        '<div class="detail-section"><h4>Order Notes</h4><p>'+(o.customer.notes||'<em style="opacity:.5">None</em>')+'</p></div>'+
+        '<div class="detail-section"><h4>Customer Info</h4><p><strong>'+escapeHtml(custName)+'</strong><br/>'+escapeHtml(custEmail)+'<br/>'+escapeHtml(custPhone)+'</p></div>'+
+        '<div class="detail-section"><h4>Shipping Address</h4><p>'+escapeHtml(custStreet+custApt)+'<br/>'+escapeHtml(custCity+custGov)+'</p></div>'+
+        '<div class="detail-section"><h4>Order Notes</h4><p>'+(custNotes ? '<span style="display:inline-block;padding:5px 9px;background:#FFF3E0;color:#B76E00;border:1px solid #FFE0B2;border-radius:6px;font-weight:500;">📝 '+escapeHtml(custNotes)+'</span>' : '<em style="opacity:.5">None</em>')+'</p></div>'+
       '</div>'+
-      '<div class="detail-items"><table><thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr></thead><tbody>'+
-        o.items.map(function(i){return '<tr><td>'+i.name+(i.letter?' <strong>(Letter: '+i.letter+')</strong>':'')+'</td><td>'+i.qty+'</td><td>'+fmt(i.price)+'</td><td>'+fmt(i.price*i.qty)+'</td></tr>'}).join('')+
-        (o.discount?'<tr><td colspan="3" style="text-align:right;color:var(--green)">Discount ('+o.promoCode+')</td><td style="color:var(--green)">-'+fmt(o.discount)+'</td></tr>':'')+
-        '<tr style="font-weight:500"><td colspan="3" style="text-align:right;padding-top:12px">Total Paid</td><td style="padding-top:12px">'+fmt(o.total)+'</td></tr>'+
+      '<div class="detail-items"><table><thead><tr><th style="min-width:220px">Product</th><th style="width:70px;text-align:center">Qty</th><th style="width:110px">Unit Price</th><th style="width:110px">Subtotal</th></tr></thead><tbody>'+
+        (o.items || []).map(function(i){
+          var imgHtml = '';
+          if (i.image) {
+            imgHtml = '<img src="' + escapeHtml(i.image) + '" class="detail-item-img" alt="" onerror="this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'flex\';"/>' +
+                      '<div class="detail-item-img-placeholder" style="display:none">🕯️</div>';
+          } else {
+            imgHtml = '<div class="detail-item-img-placeholder">🕯️</div>';
+          }
+
+          var tags = [];
+          if (i.color) {
+            tags.push('<span class="detail-tag color">🎨 Color: <strong>' + escapeHtml(i.color) + '</strong></span>');
+          }
+          if (i.pricingOption) {
+            tags.push('<span class="detail-tag option">📏 Option: <strong>' + escapeHtml(i.pricingOption) + '</strong></span>');
+          }
+          if (i.letter) {
+            tags.push('<span class="detail-tag letter">🔤 Custom Initial: <strong>' + escapeHtml(i.letter) + '</strong></span>');
+          }
+
+          return '<tr>'+
+            '<td>'+
+              '<div class="detail-product-cell">'+
+                imgHtml +
+                '<div class="detail-item-info">'+
+                  '<div class="detail-item-name">' + escapeHtml(i.name) + '</div>'+
+                  (tags.length ? '<div class="detail-item-tags">' + tags.join('') + '</div>' : '')+
+                '</div>'+
+              '</div>'+
+            '</td>'+
+            '<td style="text-align:center;font-weight:600">' + i.qty + '</td>'+
+            '<td>' + fmt(i.price) + '</td>'+
+            '<td style="font-weight:600">' + fmt(i.price * i.qty) + '</td>'+
+          '</tr>';
+        }).join('')+
+        (o.shipping ? '<tr><td colspan="3" style="text-align:right;color:var(--text-light)">Shipping</td><td>+' + fmt(o.shipping) + '</td></tr>' : '<tr><td colspan="3" style="text-align:right;color:var(--green)">Shipping</td><td style="color:var(--green)">Free</td></tr>') +
+        (o.discount ? '<tr><td colspan="3" style="text-align:right;color:var(--green)">Discount ('+escapeHtml(o.promoCode||'Promo')+')</td><td style="color:var(--green)">-'+fmt(o.discount)+'</td></tr>' : '')+
+        '<tr style="font-weight:600;font-size:0.95rem"><td colspan="3" style="text-align:right;padding-top:12px">Total Paid</td><td style="padding-top:12px;color:var(--espresso)">'+fmt(o.total)+'</td></tr>'+
       '</tbody></table></div>'+
     '</td></tr>';
   }).join('')+'</tbody></table>';
@@ -420,7 +502,7 @@ function adminWhatsApp(orderNum, type){
   var o = orders.find(function(x) { return x.orderNum === orderNum; });
   if (!o) return;
   
-  var phone = o.customer.phone;
+  var phone = o.customer && o.customer.phone;
   if (!phone) { showToast('⚠️ No phone number provided'); return; }
   
   // Clean phone number (strip everything except + and digits)
@@ -432,16 +514,27 @@ function adminWhatsApp(orderNum, type){
   }
   
   var text = '';
-  var name = o.customer.firstName;
+  var name = (o.customer && o.customer.firstName) || 'Customer';
   var onum = o.orderNum;
   
+  var itemsSummary = (o.items || []).map(function(i) {
+    var details = [];
+    if (i.color) details.push('Color: ' + i.color);
+    if (i.pricingOption) details.push('Option: ' + i.pricingOption);
+    if (i.letter) details.push('Letter: ' + i.letter);
+    return '• ' + i.name + (details.length ? ' (' + details.join(', ') + ')' : '') + ' × ' + i.qty;
+  }).join('\n');
+
   if (type === 'confirm') {
     text = 'Hello ' + name + ',\n\n' +
-           'This is SCANDLEOUS confirming your order #' + onum + ' for ' + STORE_SETTINGS.currency + o.total + '.\n\n' +
+           'This is SCANDLEOUS confirming your order #' + onum + ':\n\n' +
+           itemsSummary + '\n\n' +
+           'Total: ' + STORE_SETTINGS.currency + ' ' + o.total + '\n\n' +
            'We are currently processing it and will let you know once it\'s shipped! ✿';
   } else if (type === 'shipping') {
     text = 'Hello ' + name + ',\n\n' +
            'Great news! Your SCANDLEOUS order #' + onum + ' has been shipped and is on its way to you. ✿\n\n' +
+           'Items:\n' + itemsSummary + '\n\n' +
            'Thank you for your patience!';
   } else if (type === 'out') {
     text = 'Hello ' + name + ',\n\n' +
@@ -530,7 +623,7 @@ function handleRestoreBackup(event) {
           });
         }
 
-        if (tasks.length === 0) {
+        if (localStore || tasks.length === 0) {
           finalizeRestore();
         } else {
           tasks.forEach(function(task) {
@@ -720,6 +813,13 @@ function handleImageFile(e){
     if(!file.type.startsWith('image/')){showToast('⚠️ Skipped non-image file');return}
     if(file.size>15*1024*1024){showToast('⚠️ Skipped image over 15MB');return}
     
+    if(localStore){
+      const reader=new FileReader();
+      reader.onload=()=>{currentImagesData.push(reader.result);showPreview();};
+      reader.onerror=()=>showToast('Could not read image');
+      reader.readAsDataURL(file);
+      return;
+    }
     var ext = file.name.split('.').pop() || 'jpg';
     var uniqueName = Date.now() + '_' + Math.random().toString(36).substr(2,9) + '.' + ext;
     
@@ -1301,7 +1401,7 @@ function closePromoModal(){closeModal('promoModalOverlay','promoModal')}
 //  AUTH
 // ═══════════════════════════════════════════════════════════
 async function checkLogin() {
-  var email = 'Scandleous09@gmail.com'; // Hardcoded for convenience
+  var email = localStore ? 'owner@example.test' : 'Scandleous09@gmail.com'; // Hardcoded for convenience
   var pwd = document.getElementById('loginPwd').value;
   var btn = document.querySelector('.login-btn');
   
@@ -1332,19 +1432,7 @@ async function checkLogin() {
 // ═══════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════
-const firebaseConfig = {
-  apiKey: "AIzaSyAxAksxq3AvxwnHpit4Ziz60Xw4M1UEnx0",
-  authDomain: "scandelous-3d5ba.firebaseapp.com",
-  databaseURL: "https://scandelous-3d5ba-default-rtdb.firebaseio.com",
-  projectId: "scandelous-3d5ba",
-  storageBucket: "scandelous-3d5ba.firebasestorage.app",
-  messagingSenderId: "659951201302",
-  appId: "1:659951201302:web:516f6363edc5c2038a5937"
-};
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-window.DB_REF = db.ref('/');
-
+document.querySelector('.login-btn').disabled=false;
 firebase.auth().onAuthStateChanged(function(user) {
   if (user) {
     // User is signed in, load data
@@ -1352,7 +1440,7 @@ firebase.auth().onAuthStateChanged(function(user) {
     overlay.style.opacity = '0';
     setTimeout(function(){ overlay.style.display = 'none'; }, 400);
     
-    var dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
+
     
     function getArray(val, fallback) {
       if (!val) return fallback;
@@ -1411,7 +1499,7 @@ firebase.auth().onAuthStateChanged(function(user) {
       var t = Date.now();
       
       function fetchNode(name) {
-        return fetch(dbUrl + '/' + name + '.json?auth=' + token + '&_t=' + t)
+        return fetch(databaseUrl(name,{auth:token,_t:t}))
           .then(function(r) {
             console.log('[Admin] ' + name + ' HTTP ' + r.status);
             if (!r.ok) return null;
@@ -1427,7 +1515,7 @@ firebase.auth().onAuthStateChanged(function(user) {
         fetchNode('sc_categories'),
         fetchNode('sc_custom_products_v2'),
         fetchNode('sc_deleted_products'),
-        fetch(dbUrl + '/sc_orders.json?auth=' + token + '&orderBy="$key"&limitToLast=150&_t=' + t)
+        fetch(databaseUrl('sc_orders',{auth:token,orderBy:'"$key"',limitToLast:150,_t:t}))
           .then(function(r) { console.log('[Admin] sc_orders HTTP ' + r.status); return r.ok ? r.json() : null; })
           .catch(function() { return null; }),
         fetchNode('sc_stock'),
