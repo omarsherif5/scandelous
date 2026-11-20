@@ -250,6 +250,19 @@
   </div>
 </div>
 
+<!-- ═══════════════ ORDER DETAILS POPUP MODAL ═══════════════ -->
+<div class="modal-overlay" id="orderModalOverlay" onclick="closeOrderModal()"></div>
+<div class="modal-panel order-modal" id="orderModal">
+  <div class="pm-head">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div class="pm-title" id="omTitle">Order Details</div>
+      <span id="omStatusBadge" class="badge"></span>
+    </div>
+    <button class="pm-close" onclick="closeOrderModal()">✕</button>
+  </div>
+  <div class="order-modal-body" id="omBody"></div>
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -432,7 +445,7 @@ function renderOrders(){
         }).join('')+
       '</select></td>'+
       '<td>'+
-        '<button class="expand-btn" onclick="toggleDetail(\'d-'+escapeHtml(o.orderNum)+'\')">Details</button>'+
+        '<button class="expand-btn" style="background:var(--ivory);border-color:var(--sand);font-weight:500" onclick="openOrderDetailModal(\''+escapeHtml(o.orderNum)+'\')">🔍 Details</button>'+
         '<select class="expand-btn" style="margin-left:6px;background:#25D366;color:#fff;border-color:#25D366;padding:4px 6px;width:auto;cursor:pointer" onchange="if(this.value){ adminWhatsApp(\''+escapeHtml(o.orderNum)+'\', this.value); this.value=\'\'; }">'+
           '<option value="">💬 Message...</option>'+
           '<option value="confirm">Confirm Order</option>'+
@@ -490,6 +503,233 @@ function renderOrders(){
       '</tbody></table></div>'+
     '</td></tr>';
   }).join('')+'</tbody></table>';
+}
+
+function findColorHex(colorName, productId) {
+  if (!colorName) return null;
+  if (colorName.startsWith('#')) return colorName;
+  if (typeof PRODUCTS !== 'undefined' && Array.isArray(PRODUCTS)) {
+    var p = PRODUCTS.find(function(x) { return x.id === productId; });
+    if (p && Array.isArray(p.colors)) {
+      var found = p.colors.find(function(c) {
+        if (typeof c === 'object' && c !== null) {
+          return c.name && c.name.toLowerCase() === colorName.toLowerCase();
+        }
+        return false;
+      });
+      if (found && found.hex) return found.hex;
+    }
+  }
+  var common = {
+    'pink': '#FFC0CB',
+    'white': '#FFFFFF',
+    'black': '#333333',
+    'lemon': '#FFF44F',
+    'yellow': '#FFEB3B',
+    'cherry': '#DE3163',
+    'cherry 2': '#C2185B',
+    'red': '#E53935',
+    'blue': '#64B5F6',
+    'green': '#81C784',
+    'jasmine': '#F8DE7E',
+    'lavender': '#E6E6FA',
+    'beige': '#F5F5DC',
+    'marble brown': '#A07855',
+    'brown': '#8D6E63',
+    'taupe': '#BCAEA5',
+    'hearts': '#FF69B4',
+    'squares': '#D9A8A8',
+    'gold': '#D4AF37',
+    'silver': '#C0C0C0'
+  };
+  var lower = colorName.toLowerCase().trim();
+  if (common[lower]) return common[lower];
+  return null;
+}
+
+function openOrderDetailModal(orderNum) {
+  var orders = getOrders();
+  var o = orders.find(function(x) { return x.orderNum === orderNum; });
+  if (!o) return;
+
+  var d = new Date(o.date);
+  var dateStr = d.toLocaleDateString('en-EG', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  var timeStr = d.toLocaleTimeString('en-EG', { hour: '2-digit', minute: '2-digit' });
+  var st = o.status || 'received';
+
+  document.getElementById('omTitle').textContent = 'Order #' + o.orderNum;
+  var statusBadge = document.getElementById('omStatusBadge');
+  if (statusBadge) {
+    statusBadge.className = 'badge badge-' + st;
+    statusBadge.textContent = st.charAt(0).toUpperCase() + st.slice(1);
+  }
+
+  var custName = ((o.customer && o.customer.firstName) || '') + ' ' + ((o.customer && o.customer.lastName) || '');
+  var custEmail = (o.customer && o.customer.email) || '';
+  var custPhone = (o.customer && o.customer.phone) || '';
+  var custStreet = (o.customer && o.customer.street) || '';
+  var custApt = (o.customer && o.customer.apt) ? ', Apt ' + o.customer.apt : '';
+  var custCity = (o.customer && o.customer.city) || '';
+  var custGov = (o.customer && o.customer.gov) ? ', ' + o.customer.gov : '';
+  var custNotes = (o.customer && o.customer.notes) || '';
+
+  var itemsHtml = (o.items || []).map(function(i) {
+    var imgUrl = i.image || '';
+    if (!imgUrl && typeof PRODUCTS !== 'undefined') {
+      var prod = PRODUCTS.find(function(p) { return p.id === i.id; });
+      if (prod) imgUrl = (prod.images && prod.images[0]) || prod.image || '';
+    }
+
+    var imgHtml = '';
+    if (imgUrl) {
+      imgHtml = '<img src="' + escapeHtml(imgUrl) + '" class="om-item-thumb" alt="" onerror="this.style.display=\'none\';if(this.nextElementSibling)this.nextElementSibling.style.display=\'flex\';"/>' +
+                '<div class="om-item-thumb-placeholder" style="display:none">🕯️</div>';
+    } else {
+      imgHtml = '<div class="om-item-thumb-placeholder">🕯️</div>';
+    }
+
+    var chips = [];
+    if (i.color) {
+      var hex = findColorHex(i.color, i.id);
+      var swatchHtml = hex ? '<span class="chip-swatch" style="background-color:' + hex + '"></span>' : '<span style="font-size:1.1rem">🎨</span>';
+      chips.push('<div class="om-choice-chip color">' + swatchHtml + '<span>Chosen Color / Variant: <strong style="font-size:1rem;color:#8B2E2E">' + escapeHtml(i.color) + '</strong></span></div>');
+    }
+    if (i.pricingOption) {
+      chips.push('<div class="om-choice-chip option"><span style="font-size:1.1rem">📏</span><span>Chosen Option / Size: <strong style="font-size:1rem;color:#1B5282">' + escapeHtml(i.pricingOption) + '</strong></span></div>');
+    }
+    if (i.letter) {
+      chips.push('<div class="om-choice-chip letter"><span style="font-size:1.1rem">🔤</span><span>Custom Initial Letter: <strong style="font-size:1.1rem;background:#fff;padding:2px 10px;border-radius:6px;border:1.5px solid #FCE0B0;color:#945300">' + escapeHtml(i.letter) + '</strong></span></div>');
+    }
+
+    var customBoxHtml = '';
+    if (chips.length > 0) {
+      customBoxHtml = '<div class="om-customization-box">' +
+        '<div class="om-custom-header">✨ Buyer Selected Customizations:</div>' +
+        '<div class="om-custom-grid">' + chips.join('') + '</div>' +
+      '</div>';
+    } else {
+      customBoxHtml = '<div class="om-customization-box" style="background:#FAFAFA;border-color:#EEE;">' +
+        '<div class="om-choice-none">✓ Standard product (No custom color/size option selected)</div>' +
+      '</div>';
+    }
+
+    return '<div class="om-item-card">' +
+      imgHtml +
+      '<div class="om-item-content">' +
+        '<div class="om-item-head">' +
+          '<div class="om-item-name">' + escapeHtml(i.name) + '</div>' +
+          '<div class="om-item-price-pill">' + fmt(i.price) + ' × ' + i.qty + '</div>' +
+        '</div>' +
+        customBoxHtml +
+        '<div class="om-item-calc">' +
+          '<span>Item calculation: ' + i.qty + ' × ' + fmt(i.price) + '</span>' +
+          '<strong>' + fmt(i.price * i.qty) + '</strong>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  var bodyHtml = 
+    '<div class="om-top-card">' +
+      '<div class="om-order-meta">' +
+        '<span class="om-order-date">📅 ' + dateStr + ' at ' + timeStr + '</span>' +
+      '</div>' +
+      '<div class="om-quick-status">' +
+        '<label>Update Status:</label>' +
+        '<select class="status-select" onchange="updateOrderStatus(\'' + escapeHtml(o.orderNum) + '\', this.value); document.getElementById(\'omStatusBadge\').className=\'badge badge-\'+this.value; document.getElementById(\'omStatusBadge\').textContent=this.value.charAt(0).toUpperCase()+this.value.slice(1);">' +
+          ['received','processing','shipped','delivered','cancelled'].map(function(s){
+            return '<option value="' + s + '"' + (st === s ? ' selected' : '') + '>' + s.charAt(0).toUpperCase() + s.slice(1) + '</option>';
+          }).join('') +
+        '</select>' +
+      '</div>' +
+    '</div>' +
+
+    '<div>' +
+      '<div class="om-section-title">🛍️ Ordered Products & Buyer Customizations (' + (o.items ? o.items.length : 0) + ')</div>' +
+      '<div class="om-items-list">' + itemsHtml + '</div>' +
+    '</div>' +
+
+    '<div>' +
+      '<div class="om-section-title">👤 Customer & Shipping Information</div>' +
+      '<div class="om-details-grid">' +
+        '<div class="om-info-card">' +
+          '<h4>Customer</h4>' +
+          '<p><strong>' + escapeHtml(custName) + '</strong><br/>' +
+          (custEmail ? '<a href="mailto:' + escapeHtml(custEmail) + '" style="color:var(--espresso);text-decoration:none">' + escapeHtml(custEmail) + '</a><br/>' : '') +
+          (custPhone ? '<a href="tel:' + escapeHtml(custPhone) + '" style="color:var(--espresso);font-weight:600;text-decoration:none">📞 ' + escapeHtml(custPhone) + '</a>' : '<span style="opacity:.5">No phone</span>') +
+          '</p>' +
+        '</div>' +
+        '<div class="om-info-card">' +
+          '<h4>Shipping Address</h4>' +
+          '<p>' + escapeHtml(custStreet + custApt) + '<br/><strong>' + escapeHtml(custCity + custGov) + '</strong><br/>' +
+          '<span style="font-size:.78rem;color:var(--text-light);background:var(--ivory);padding:2px 8px;border-radius:4px;display:inline-block;margin-top:4px">Cash on Delivery (COD)</span>' +
+          '</p>' +
+        '</div>' +
+        '<div class="om-info-card">' +
+          '<h4>Customer Notes</h4>' +
+          (custNotes ? '<span class="om-highlight">📝 ' + escapeHtml(custNotes) + '</span>' : '<p><span style="opacity:.5;font-style:italic">No special notes provided</span></p>') +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+
+    '<div>' +
+      '<div class="om-section-title">💳 Payment Breakdown</div>' +
+      '<div class="om-finance-card">' +
+        '<table class="om-finance-table">' +
+          '<tr><td style="color:var(--text-light)">Subtotal</td><td style="text-align:right;font-weight:500">' + fmt(o.subtotal || o.total) + '</td></tr>' +
+          '<tr><td style="color:var(--text-light)">Shipping</td><td style="text-align:right;' + (o.shipping ? 'font-weight:500' : 'color:var(--green);font-weight:600') + '">' + (o.shipping ? '+' + fmt(o.shipping) : 'Free') + '</td></tr>' +
+          (o.discount ? '<tr><td style="color:var(--green)">Discount (' + escapeHtml(o.promoCode || 'Promo') + ')</td><td style="text-align:right;color:var(--green);font-weight:500">-' + fmt(o.discount) + '</td></tr>' : '') +
+          '<tr class="total-row"><td>Total Due</td><td style="text-align:right">' + fmt(o.total) + '</td></tr>' +
+        '</table>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="om-actions-bar">' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+        '<button class="om-action-btn whatsapp" onclick="adminWhatsApp(\'' + escapeHtml(o.orderNum) + '\', \'confirm\')">💬 WhatsApp Confirm</button>' +
+        '<button class="om-action-btn secondary" onclick="copyOrderDetails(\'' + escapeHtml(o.orderNum) + '\')">📋 Copy Summary</button>' +
+        '<button class="om-action-btn secondary" onclick="window.print()">🖨️ Print</button>' +
+      '</div>' +
+      '<button class="om-action-btn close" onclick="closeOrderModal()">Close Window</button>' +
+    '</div>';
+
+  document.getElementById('omBody').innerHTML = bodyHtml;
+  openModal('orderModalOverlay', 'orderModal');
+}
+
+function closeOrderModal() {
+  closeModal('orderModalOverlay', 'orderModal');
+}
+
+function copyOrderDetails(orderNum) {
+  var orders = getOrders();
+  var o = orders.find(function(x) { return x.orderNum === orderNum; });
+  if (!o) return;
+  var itemsText = (o.items || []).map(function(i) {
+    var details = [];
+    if (i.color) details.push('Color: ' + i.color);
+    if (i.pricingOption) details.push('Option: ' + i.pricingOption);
+    if (i.letter) details.push('Letter: ' + i.letter);
+    return '• ' + i.name + (details.length ? ' [' + details.join(', ') + ']' : '') + ' × ' + i.qty + ' (' + fmt(i.price * i.qty) + ')';
+  }).join('\n');
+
+  var text = 'ORDER #' + o.orderNum + '\n' +
+    'Customer: ' + ((o.customer && o.customer.firstName) || '') + ' ' + ((o.customer && o.customer.lastName) || '') + '\n' +
+    'Phone: ' + ((o.customer && o.customer.phone) || '') + '\n' +
+    'Address: ' + ((o.customer && o.customer.street) || '') + ', ' + ((o.customer && o.customer.city) || '') + '\n' +
+    (o.customer && o.customer.notes ? 'Notes: ' + o.customer.notes + '\n' : '') +
+    '---\n' + itemsText + '\n---\n' +
+    'Total: ' + fmt(o.total);
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      showToast('✓ Order details copied to clipboard!');
+    }).catch(function() {
+      showToast('✓ Order summary ready');
+    });
+  } else {
+    showToast('✓ Order summary ready');
+  }
 }
 
 function toggleDetail(id){document.getElementById(id).classList.toggle('open')}
