@@ -261,7 +261,6 @@
 <script src="gallery.js"></script>
 <script src="collections.js"></script>
 <script src="products.js"></script>
-<script src="store-connection.js"></script>
 <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
 <script>
 if ('scrollRestoration' in history) {
@@ -606,7 +605,7 @@ async function placeOrder() {
   } finally { submit.disabled=false; }
   window.FB_STOCK=stock;
   window.FB_PROMO_CODES=promos;
-  if(!localStore)sendOrderEmail(order);
+  sendOrderEmail(order);
 
   // Clear cart & show success
   cart = [];
@@ -943,9 +942,27 @@ function subscribeNewsletter() {
 }
 
 // ✿✿ INIT ✿✿
+const firebaseConfig = {
+  apiKey: "AIzaSyAxAksxq3AvxwnHpit4Ziz60Xw4M1UEnx0",
+  authDomain: "scandelous-3d5ba.firebaseapp.com",
+  databaseURL: "https://scandelous-3d5ba-default-rtdb.firebaseio.com",
+  projectId: "scandelous-3d5ba",
+  storageBucket: "scandelous-3d5ba.firebasestorage.app",
+  messagingSenderId: "659951201302",
+  appId: "1:659951201302:web:516f6363edc5c2038a5937"
+};
+
+if (!firebase.apps || !firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.database();
+window.DB_REF = db.ref('/');
+
 // Disconnect SDK WebSocket — storefront uses REST for reads.
 // SDK auto-reconnects when a customer places an order (write).
 firebase.database().goOffline();
+
+const dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
 
 
   function getArray(dataStr, fallback) {
@@ -1012,7 +1029,7 @@ firebase.database().goOffline();
   // ── Data loader: REST API only (no SDK connections = no connection limit) ──
 
   function fetchNode(name) {
-    return fetch(databaseUrl(name)).then(function(r) {
+    return fetch(dbUrl + '/' + name + '.json').then(function(r) {
       if (!r.ok) throw new Error(name + ' ' + r.status);
       return r.json();
     });

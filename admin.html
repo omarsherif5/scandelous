@@ -18,7 +18,7 @@
     <div class="login-sub">Admin Access Only</div>
     <div class="login-field">
       <input type="password" id="loginPwd" class="login-input" placeholder="Enter Password" onkeypress="if(event.key==='Enter')checkLogin()"/>
-      <button disabled class="login-btn" onclick="checkLogin()">Enter Dashboard</button>
+      <button class="login-btn" onclick="checkLogin()">Enter Dashboard</button>
     </div>
     <div class="login-error" id="loginError">Incorrect password</div>
   </div>
@@ -253,9 +253,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-
 <script src="products.js"></script>
-<script src="store-connection.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════════
 //  UTILITIES
@@ -623,7 +621,7 @@ function handleRestoreBackup(event) {
           });
         }
 
-        if (localStore || tasks.length === 0) {
+        if (tasks.length === 0) {
           finalizeRestore();
         } else {
           tasks.forEach(function(task) {
@@ -813,13 +811,6 @@ function handleImageFile(e){
     if(!file.type.startsWith('image/')){showToast('⚠️ Skipped non-image file');return}
     if(file.size>15*1024*1024){showToast('⚠️ Skipped image over 15MB');return}
     
-    if(localStore){
-      const reader=new FileReader();
-      reader.onload=()=>{currentImagesData.push(reader.result);showPreview();};
-      reader.onerror=()=>showToast('Could not read image');
-      reader.readAsDataURL(file);
-      return;
-    }
     var ext = file.name.split('.').pop() || 'jpg';
     var uniqueName = Date.now() + '_' + Math.random().toString(36).substr(2,9) + '.' + ext;
     
@@ -1401,46 +1392,81 @@ function closePromoModal(){closeModal('promoModalOverlay','promoModal')}
 //  AUTH
 // ═══════════════════════════════════════════════════════════
 async function checkLogin() {
-  var email = localStore ? 'owner@example.test' : 'Scandleous09@gmail.com'; // Hardcoded for convenience
-  var pwd = document.getElementById('loginPwd').value;
+  var email = 'Scandleous09@gmail.com'; // Hardcoded admin email
+  var pwdInput = document.getElementById('loginPwd');
+  var pwd = pwdInput ? pwdInput.value : '';
   var btn = document.querySelector('.login-btn');
+  var errEl = document.getElementById('loginError');
   
   if (!pwd) {
-    document.getElementById('loginError').textContent = 'Please enter a password';
-    document.getElementById('loginError').classList.add('show');
-    setTimeout(function(){ document.getElementById('loginError').classList.remove('show'); }, 3000);
+    if (errEl) {
+      errEl.textContent = 'Please enter a password';
+      errEl.classList.add('show');
+      setTimeout(function(){ errEl.classList.remove('show'); }, 3000);
+    }
     return;
   }
   
-  btn.textContent = 'Authenticating...';
-  btn.disabled = true;
+  if (btn) {
+    btn.textContent = 'Authenticating...';
+    btn.disabled = true;
+  }
   
   try {
-    await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.SESSION);
+    if (!firebase.apps || !firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    await firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     await firebase.auth().signInWithEmailAndPassword(email, pwd);
-    // onAuthStateChanged will handle the UI update
+    // onAuthStateChanged will handle hiding the login overlay and loading dashboard data
   } catch(err) {
     console.error('Login error:', err);
-    document.getElementById('loginError').textContent = 'Incorrect password';
-    document.getElementById('loginError').classList.add('show');
-    setTimeout(function(){ document.getElementById('loginError').classList.remove('show'); }, 4000);
-    btn.textContent = 'Enter Dashboard';
-    btn.disabled = false;
+    if (errEl) {
+      if (err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found') {
+        errEl.textContent = 'Incorrect password';
+      } else if (err.code === 'auth/too-many-requests') {
+        errEl.textContent = 'Too many attempts. Please wait a moment.';
+      } else if (err.code === 'auth/network-request-failed') {
+        errEl.textContent = 'Network error. Please check your connection.';
+      } else {
+        errEl.textContent = err.message || 'Incorrect password';
+      }
+      errEl.classList.add('show');
+      setTimeout(function(){ errEl.classList.remove('show'); }, 4000);
+    }
+    if (btn) {
+      btn.textContent = 'Enter Dashboard';
+      btn.disabled = false;
+    }
   }
 }
 
 // ═══════════════════════════════════════════════════════════
 //  INIT
 // ═══════════════════════════════════════════════════════════
-document.querySelector('.login-btn').disabled=false;
+const firebaseConfig = {
+  apiKey: "AIzaSyAxAksxq3AvxwnHpit4Ziz60Xw4M1UEnx0",
+  authDomain: "scandelous-3d5ba.firebaseapp.com",
+  databaseURL: "https://scandelous-3d5ba-default-rtdb.firebaseio.com",
+  projectId: "scandelous-3d5ba",
+  storageBucket: "scandelous-3d5ba.firebasestorage.app",
+  messagingSenderId: "659951201302",
+  appId: "1:659951201302:web:516f6363edc5c2038a5937"
+};
+
+if (!firebase.apps || !firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
+const db = firebase.database();
+window.DB_REF = db.ref('/');
+const dbUrl = "https://scandelous-3d5ba-default-rtdb.firebaseio.com";
+
 firebase.auth().onAuthStateChanged(function(user) {
   if (user) {
     // User is signed in, load data
     var overlay = document.getElementById('loginOverlay');
     overlay.style.opacity = '0';
     setTimeout(function(){ overlay.style.display = 'none'; }, 400);
-    
-
     
     function getArray(val, fallback) {
       if (!val) return fallback;
@@ -1499,7 +1525,7 @@ firebase.auth().onAuthStateChanged(function(user) {
       var t = Date.now();
       
       function fetchNode(name) {
-        return fetch(databaseUrl(name,{auth:token,_t:t}))
+        return fetch(dbUrl + '/' + name + '.json?auth=' + token + '&_t=' + t)
           .then(function(r) {
             console.log('[Admin] ' + name + ' HTTP ' + r.status);
             if (!r.ok) return null;
@@ -1515,7 +1541,7 @@ firebase.auth().onAuthStateChanged(function(user) {
         fetchNode('sc_categories'),
         fetchNode('sc_custom_products_v2'),
         fetchNode('sc_deleted_products'),
-        fetch(databaseUrl('sc_orders',{auth:token,orderBy:'"$key"',limitToLast:150,_t:t}))
+        fetch(dbUrl + '/sc_orders.json?auth=' + token + '&orderBy="$key"&limitToLast=150&_t=' + t)
           .then(function(r) { console.log('[Admin] sc_orders HTTP ' + r.status); return r.ok ? r.json() : null; })
           .catch(function() { return null; }),
         fetchNode('sc_stock'),
@@ -1540,6 +1566,11 @@ firebase.auth().onAuthStateChanged(function(user) {
     var overlay = document.getElementById('loginOverlay');
     overlay.style.display = 'flex';
     overlay.style.opacity = '1';
+    var btn = document.querySelector('.login-btn');
+    if (btn) {
+      btn.textContent = 'Enter Dashboard';
+      btn.disabled = false;
+    }
     
     // Clear data from memory to secure the admin panel on logout
     window.FB_ORDERS = [];
